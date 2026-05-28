@@ -196,8 +196,6 @@ function gameReducer(state: GameState, action: Action): GameState {
       let newShotsSinceDrop = state.shotsSinceDrop;
       if (!hasMatch) {
         newShotsSinceDrop++;
-      } else {
-        newShotsSinceDrop = 0;
       }
 
       if (newShotsSinceDrop >= state.shotsBeforeDrop) {
