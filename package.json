@@ -1,0 +1,33 @@
+{
+  "name": "bubbleblast-arena",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "serve out -p 3000",
+    "build:zip": "next build && cd out && npx bestzip ../game.zip *"
+  },
+  "dependencies": {
+    "class-variance-authority": "0.7.0",
+    "clsx": "2.1.1",
+    "lucide-react": "0.408.0",
+    "next": "14.2.35",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tailwind-merge": "2.3.0",
+    "tailwindcss-animate": "1.0.7",
+    "tone": "14.7.77"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@types/react": "^18.2.47",
+    "@types/react-dom": "^18.2.19",
+    "autoprefixer": "^10.4.19",
+    "bestzip": "^2.2.1",
+    "postcss": "8.4.39",
+    "serve": "^14.2.3",
+    "tailwindcss": "3.4.4",
+    "typescript": "5.4.5"
+  }
+}

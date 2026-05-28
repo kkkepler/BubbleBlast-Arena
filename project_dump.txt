@@ -1,0 +1,4322 @@
+===== .gitignore =====
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+/coverage
+/.next/
+/out/
+/build
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+.env*
+
+===== .idx/dev.nix =====
+{pkgs}: {
+  channel = "stable-24.05";
+  packages = [
+    pkgs.nodejs_20
+  ];
+  idx.extensions = [];
+  idx.previews = {
+    previews = {
+      web = {
+        command = [
+          "npm"
+          "run"
+          "dev"
+          "--"
+          "--port"
+          "$PORT"
+          "--hostname"
+          "0.0.0.0"
+        ];
+        manager = "web";
+      };
+    };
+  };
+}
+
+===== next-env.d.ts =====
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/building-your-application/configuring/typescript for more information.
+
+===== next.config.js =====
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: false,
+  output: 'export',
+  assetPrefix: './',
+  images: { unoptimized: true },
+  trailingSlash: true,
+};
+module.exports = nextConfig;
+
+===== package.json =====
+{
+  "name": "bubbleblast-arena",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "serve out -p 3000",
+    "build:zip": "next build && cd out && npx bestzip ../game.zip *"
+  },
+  "dependencies": {
+    "class-variance-authority": "0.7.0",
+    "clsx": "2.1.1",
+    "lucide-react": "0.408.0",
+    "next": "14.2.35",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tailwind-merge": "2.3.0",
+    "tailwindcss-animate": "1.0.7",
+    "tone": "14.7.77"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@types/react": "^18.2.47",
+    "@types/react-dom": "^18.2.19",
+    "autoprefixer": "^10.4.19",
+    "bestzip": "^2.2.1",
+    "postcss": "8.4.39",
+    "serve": "^14.2.3",
+    "tailwindcss": "3.4.4",
+    "typescript": "5.4.5"
+  }
+}
+
+===== postcss.config.js =====
+module.exports = { plugins: { tailwindcss: {}, autoprefixer: {} } };
+
+===== scripts/dump-full.js =====
+const fs = require('fs');
+const path = require('path');
+
+const outputFilePath = path.join(__dirname, '..', 'project_dump.txt');
+const rootDir = path.join(__dirname, '..');
+
+const ignoreDirs = ['node_modules', '.next', '.git', 'out', 'build', 'coverage'];
+const ignoreFiles = ['project_dump.txt', 'package-lock.json', 'yarn.lock'];
+
+function dump(dir, relativePath = '') {
+  let result = '';
+  if (!fs.existsSync(dir)) return result;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+    const entryRelativePath = path.join(relativePath, entry.name);
+
+    if (entry.isDirectory()) {
+      if (!ignoreDirs.includes(entry.name)) {
+        result += dump(entryPath, entryRelativePath);
+      }
+    } else {
+      if (!ignoreFiles.includes(entry.name)) {
+        try {
+          const content = fs.readFileSync(entryPath, 'utf8');
+          result += `===== ${entryRelativePath.replace(/\\/g, '/')} =====\n${content}\n`;
+        } catch (e) {}
+      }
+    }
+  }
+  return result;
+}
+
+console.log('Creating project dump...');
+const fullDump = dump(rootDir);
+fs.writeFileSync(outputFilePath, fullDump, 'utf8');
+console.log(`Dump saved to: ${outputFilePath}`);
+
+===== scripts/restore-project-force.js =====
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const dumpFilePath = path.join(__dirname, '..', 'project_dump.txt');
+const outputDir = path.join(__dirname, '..');
+
+function createDumpIfMissing() {
+  if (fs.existsSync(dumpFilePath)) return;
+
+  console.log('Файл project_dump.txt не найден. Создаю новый дамп проекта...');
+  
+  const ignoreDirs = ['node_modules', '.next', '.git', 'out', 'build', 'coverage'];
+  const ignoreFiles = ['project_dump.txt', 'package-lock.json', 'yarn.lock'];
+  const rootDir = path.join(__dirname, '..');
+
+  function dump(dir, relativePath = '') {
+    let result = '';
+    if (!fs.existsSync(dir)) return result;
+    
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const entryPath = path.join(dir, entry.name);
+      const entryRelativePath = path.join(relativePath, entry.name);
+      
+      if (entry.isDirectory()) {
+        if (!ignoreDirs.includes(entry.name)) {
+          result += dump(entryPath, entryRelativePath);
+        }
+      } else {
+        if (!ignoreFiles.includes(entry.name)) {
+          try {
+            const content = fs.readFileSync(entryPath, 'utf8');
+            result += '===== ' + entryRelativePath.replace(/\\/g, '/') + ' =====\n';
+            result += content + '\n';
+          } catch (e) {
+            console.error(`Error reading file ${entryPath}:`, e.message);
+          }
+        }
+      }
+    }
+    return result;
+  }
+
+  try {
+    const fullDump = dump(rootDir);
+    fs.writeFileSync(dumpFilePath, fullDump, 'utf8');
+    console.log('Дамп успешно создан: ' + dumpFilePath);
+  } catch (err) {
+    console.error('Ошибка при создании дампа:', err);
+    process.exit(1);
+  }
+}
+
+createDumpIfMissing();
+
+if (!fs.existsSync(dumpFilePath)) {
+  console.error('Критическая ошибка: файл дампа все еще не найден.');
+  process.exit(1);
+}
+
+const dumpContent = fs.readFileSync(dumpFilePath, 'utf-8');
+
+const fileRegex = new RegExp('===== (.+?) =====\\n', 'g');
+const matches = [...dumpContent.matchAll(fileRegex)];
+
+if (matches.length === 0) {
+  console.error('Не удалось найти разделители файлов в дампе.');
+  process.exit(1);
+}
+
+function getHash(content) {
+  return crypto.createHash('md5').update(content).digest('hex');
+}
+
+const fileMap = new Map();
+for (let i = 0; i < matches.length; i++) {
+  const match = matches[i];
+  const filePath = match[1].trim();
+  const contentStart = match.index + match[0].length;
+  const contentEnd = i + 1 < matches.length ? matches[i + 1].index : dumpContent.length;
+  
+  let content = dumpContent.slice(contentStart, contentEnd);
+  content = content.replace(/\r\n/g, '\n');
+  if (content.endsWith('\n')) {
+    content = content.slice(0, -1);
+  }
+  
+  fileMap.set(filePath, content);
+}
+
+console.log('Найдено файлов в дампе: ' + fileMap.size);
+
+const keepDirs = new Set(['node_modules', '.next', '.git']);
+const keepFiles = new Set(['project_dump.txt', 'scripts/restore-project-force.js']);
+
+function shouldKeep(relativePath) {
+  const normalized = relativePath.replace(/\\/g, '/');
+  const topDir = normalized.split('/')[0];
+  if (keepDirs.has(topDir)) return true;
+  if (keepFiles.has(normalized)) return true;
+  return false;
+}
+
+function deleteIfNotInDump(dir, baseDir) {
+  if (!baseDir) baseDir = outputDir;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    const relativePath = path.relative(baseDir, fullPath);
+    
+    if (shouldKeep(relativePath)) {
+      continue;
+    }
+    
+    const normalizedPath = relativePath.replace(/\\/g, '/');
+    
+    if (entry.isDirectory()) {
+      deleteIfNotInDump(fullPath, baseDir);
+      try {
+        const remaining = fs.readdirSync(fullPath);
+        if (remaining.length === 0) {
+          fs.rmdirSync(fullPath);
+          console.log('  🗑️  Пустая папка: ' + normalizedPath + '/');
+        }
+      } catch (e) {}
+    } else {
+      if (!fileMap.has(normalizedPath)) {
+        fs.unlinkSync(fullPath);
+        console.log('  🗑️  Удалён: ' + normalizedPath);
+      }
+    }
+  }
+}
+
+console.log('Проверка и удаление файлов, которых нет в дампе...');
+deleteIfNotInDump(outputDir);
+console.log('');
+console.log('Восстановление файлов из дампа...');
+
+let createdCount = 0;
+let updatedCount = 0;
+let skippedCount = 0;
+
+for (const [filePath, content] of fileMap) {
+  const fullPath = path.join(outputDir, filePath);
+  const dir = path.dirname(fullPath);
+  
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  
+  if (fs.existsSync(fullPath)) {
+    let existingContent = fs.readFileSync(fullPath, 'utf-8');
+    existingContent = existingContent.replace(/\r\n/g, '\n');
+    if (existingContent.endsWith('\n')) {
+      existingContent = existingContent.slice(0, -1);
+    }
+    
+    const existingHash = getHash(existingContent);
+    const newHash = getHash(content);
+    
+    if (existingHash === newHash) {
+      skippedCount++;
+      continue;
+    }
+    
+    fs.writeFileSync(fullPath, content, 'utf-8');
+    updatedCount++;
+    console.log('  🔄 ' + filePath + ' (изменён)');
+  } else {
+    fs.writeFileSync(fullPath, content, 'utf-8');
+    createdCount++;
+    console.log('  ✅ ' + filePath + ' (новый)');
+  }
+}
+
+console.log('');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('Готово!');
+console.log('  ✅ Создано:     ' + createdCount);
+console.log('  🔄 Обновлено:   ' + updatedCount);
+console.log('  ⏭️  Без изменений: ' + skippedCount);
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+if (updatedCount > 0 || createdCount > 0) {
+  console.log('');
+  console.log('Действия:');
+  console.log('  npm install     # если добавились новые зависимости');
+  console.log('  npm run build   # пересобрать проект');
+} else {
+  console.log('');
+  console.log('Все файлы актуальны — изменений нет.');
+}
+
+===== src/app/globals.css =====
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 262 80% 58%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 262 80% 68%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 262 80% 68%;
+    --radius: 1rem;
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 222.2 47.4% 11.2%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+  }
+  html, body {
+    height: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body {
+    @apply bg-background text-foreground;
+    display: flex;
+    flex-direction: column;
+  }
+  #__next {
+    height: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@layer components {
+  .game-container {
+    touch-action: none !important;
+    user-select: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    overscroll-behavior: none !important;
+    will-change: transform;
+    background: hsl(var(--background));
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+    border-radius: 1.5rem;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .game-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    padding: 8px;
+  }
+}
+
+@keyframes shake-bubble {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  10% { transform: translate(-20px, 15px) rotate(-15deg); }
+  20% { transform: translate(20px, -15px) rotate(15deg); }
+  30% { transform: translate(-25px, 5px) rotate(-20deg); }
+  40% { transform: translate(25px, -5px) rotate(20deg); }
+  50% { transform: translate(-15px, 20px) rotate(-10deg); }
+}
+
+@keyframes swell-and-burst {
+  0% { transform: scale(0.1); opacity: 1; filter: brightness(1); }
+  30% { transform: scale(2); opacity: 1; filter: brightness(1.5); }
+  60% { transform: scale(15); opacity: 1; filter: brightness(3); }
+  90% { transform: scale(45); opacity: 0.7; filter: brightness(8); }
+  100% { transform: scale(80); opacity: 0; filter: brightness(20); }
+}
+
+@keyframes splat {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
+@keyframes fall {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(600px) scale(0.5); opacity: 0; }
+}
+
+@keyframes flash {
+  0% { opacity: 0; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+@keyframes combo {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  30% { transform: scale(1.4) rotate(5deg); opacity: 1; }
+  50% { transform: scale(0.9) rotate(-2deg); }
+  70% { transform: scale(1.1) rotate(1deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes shake-screen {
+  0%,100% { transform: translate(0,0); }
+  10% { transform: translate(-8px,-4px); }
+  20% { transform: translate(6px,3px); }
+  30% { transform: translate(-10px,5px); }
+  40% { transform: translate(8px,-3px); }
+  50% { transform: translate(-6px,4px); }
+  60% { transform: translate(10px,-5px); }
+  70% { transform: translate(-4px,2px); }
+  80% { transform: translate(5px,-2px); }
+  90% { transform: translate(-2px,1px); }
+}
+
+@keyframes color-flash {
+  0% { opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+@keyframes explode {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.8; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.animate-explode {
+  animation: explode 0.5s ease-out forwards;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 0.8s ease-out forwards;
+}
+
+.animate-shake-bubble { animation: shake-bubble 0.08s infinite; }
+.animate-swell-and-burst { animation: swell-and-burst 1.5s cubic-bezier(0.6, 0.04, 0.98, 0.33) forwards; }
+.animate-splat { animation: splat 0.3s ease-out forwards; }
+.animate-fall { animation: fall 1s cubic-bezier(0.55,0.085,0.68,0.53) forwards; }
+.animate-flash { animation: flash 0.2s ease-out forwards; }
+.animate-combo { animation: combo 0.6s cubic-bezier(0.68,-0.55,0.265,1.55) forwards; }
+.animate-shake-screen { animation: shake-screen 0.5s ease-out; }
+.animate-color-flash { animation: color-flash 0.5s ease-out forwards; }
+===== src/app/layout.tsx =====
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+import dynamic from 'next/dynamic';
+import React from 'react';
+
+const PlatformBridge = dynamic(() => import('@/components/PlatformBridge'), { ssr: false });
+const OrientationLock = dynamic(() => import('@/components/game/OrientationLock'), { ssr: false });
+const I18nProvider = dynamic(() => import('@/hooks/useI18n').then(mod => mod.I18nProvider), { ssr: false });
+const LanguageManager = dynamic(() => import('@/hooks/useI18n').then(mod => mod.LanguageManager), { ssr: false });
+
+export const metadata: Metadata = {
+  title: 'BubbleBlast Arena',
+  description: 'Aim, shoot, and pop colorful bubbles!',
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent' },
+  other: { 'mobile-web-app-capable': 'yes', 'apple-mobile-web-app-capable': 'yes' }
+};
+
+export const viewport: Viewport = {
+  width: 'device-width', initialScale: 1.0, maximumScale: 1.0, userScalable: false,
+  viewportFit: 'cover', interactiveWidget: 'resizes-content', themeColor: '#7c3aed',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  console.log('RootLayout rendering...');
+  return (
+    <html lang="ru" suppressHydrationWarning className="h-full">
+      <head>
+        <link rel="icon" href="data:;base64,=" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+      </head>
+      <body className="font-body antialiased overflow-hidden h-full">
+        <I18nProvider>
+          <PlatformBridge />
+          <LanguageManager />
+          <OrientationLock />
+          <div id="__next" className="h-full w-full overflow-hidden">
+            {children}
+          </div>
+        </I18nProvider>
+      </body>
+    </html>
+  );
+}
+===== src/app/page.tsx =====
+'use client';
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+const Game = dynamic(() => import('@/components/game/Game'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="w-16 h-16 animate-spin text-primary" />
+    </div>
+  ),
+});
+
+export default function Home() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    console.log('Page mounted, setting isClient to true');
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    console.log('Rendering loading state...');
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="w-16 h-16 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  console.log('Rendering Game component...');
+  return (
+    <main className="h-full w-full">
+      <Game />
+    </main>
+  );
+}
+===== src/app/_document.tsx =====
+import { Html, Head, Main, NextScript } from 'next/document';
+
+export default function Document() {
+return (
+<Html lang="ru">
+  <Head>
+    <link rel="icon" href="data:;base64,=" />
+  </Head>
+  <body className="bg-background text-foreground">
+    <Main />
+    <NextScript />
+  </body>
+</Html>
+);
+}
+
+===== src/components/game/AchievementsDialog.tsx =====
+"use client";
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Star, Medal } from 'lucide-react';
+import { achievementsList } from '@/lib/achievements';
+import type { PlayerAchievementsState, Achievement } from '@/lib/game-types';
+import { useI18n } from '@/hooks/useI18n';
+import { SimpleDialog, SimpleDialogHeader, SimpleDialogTitle, SimpleDialogFooter } from "@/components/ui/simple-dialog";
+
+interface Props { isOpen: boolean; onClose: () => void; playerAchievements: PlayerAchievementsState; }
+
+const AchievementRow = ({ achievement, progress }: { achievement: Achievement; progress: PlayerAchievementsState[string] }) => {
+const { t } = useI18n();
+const nextTier = achievement.tiers[progress.currentTier + 1];
+const done = !nextTier;
+const IconComponent = achievement.icon(done ? progress.currentTier : progress.currentTier + 1).component;
+
+return (
+<div className="flex items-start gap-4 p-4 border rounded-xl bg-card/50">
+  <IconComponent className="w-8 h-8 text-primary" />
+  <div className="flex-1">
+    <h4 className="font-bold">{t(achievement.name)}</h4>
+    <p className="text-sm text-muted-foreground">{t(achievement.description)}</p>
+    <div className="mt-2">
+      <div className="flex justify-between text-xs mb-1">
+        <span>{done ? t('achievements.unlocked') : t(nextTier.name)}</span>
+        <span>{done ? achievement.tiers[progress.currentTier].goal : progress.progress} / {nextTier?.goal}</span>
+      </div>
+      <Progress value={done ? 100 : (progress.progress / (nextTier?.goal || 1)) * 100} />
+    </div>
+  </div>
+  <div className="text-yellow-400 font-bold flex items-center gap-1">
+    <Star className="w-4 h-4" />
+    {done ? achievement.tiers[progress.currentTier].reward.score : nextTier?.reward.score}
+  </div>
+</div>
+);
+};
+
+const AchievementsDialog: React.FC<Props> = ({ isOpen, onClose, playerAchievements }) => {
+const { t } = useI18n();
+return (
+<SimpleDialog open={isOpen} onOpenChange={onClose} className="sm:max-w-xl">
+  <div>
+    <SimpleDialogHeader className="text-center">
+      <SimpleDialogTitle className="flex items-center justify-center gap-3 text-3xl font-black">
+        <Medal className="h-8 w-8 text-yellow-400" />
+        {t('achievements.title')}
+      </SimpleDialogTitle>
+    </SimpleDialogHeader>
+    <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+      {achievementsList.map(ach => <AchievementRow key={ach.id} achievement={ach} progress={playerAchievements[ach.id]} />)}
+    </div>
+    <SimpleDialogFooter>
+      <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
+        {t('achievements.close')}
+      </Button>
+    </SimpleDialogFooter>
+  </div>
+</SimpleDialog>
+);
+};
+export default AchievementsDialog;
+
+===== src/components/game/AchievementToast.tsx =====
+"use client";
+import React, { useEffect, useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Star, Check } from 'lucide-react';
+import { useI18n } from '@/hooks/useI18n';
+import type { UnlockedAchievement } from '@/lib/game-types';
+import { cn } from '@/lib/utils';
+import { SimpleDialog } from "@/components/ui/simple-dialog";
+
+type Props = {
+  achievement: UnlockedAchievement | null;
+  onClose: () => void;
+  onEmitParticles: () => void;
+  isClosing: boolean;
+};
+
+const AchievementUnlockedDialog = ({ achievement, onClose, onEmitParticles }: Props) => {
+  const { t } = useI18n();
+  const [show, setShow] = useState(false);
+  const isOpen = !!achievement;
+
+  useEffect(() => {
+    if (isOpen) {
+      const tm = setTimeout(() => setShow(true), 50);
+      return () => clearTimeout(tm);
+    } else {
+      setShow(false);
+    }
+  }, [isOpen]);
+
+  if (!achievement) return null;
+
+  const IconData = achievement.icon(achievement.tiers.findIndex(tier => tier.goal === achievement.unlockedTier.goal));
+  const IconComponent = IconData.component;
+
+  const handleConfirm = () => {
+    onEmitParticles();
+    onClose();
+  };
+
+  return (
+    <SimpleDialog open={isOpen} onOpenChange={(o) => !o && onClose()} className="max-w-xs">
+      <div className={cn("rounded-3xl border-4 border-primary/30 bg-card p-6 text-center shadow-[0_0_50px_rgba(0,0,0,0.3)] transition-all duration-500", show ? "scale-100 opacity-100 rotate-0" : "scale-50 opacity-0 rotate-12")}>
+        <div className="flex flex-col items-center">
+          <div className="relative mb-6 flex justify-center w-full h-16">
+            <div className="animate-bounce absolute -top-16 h-32 w-32 rounded-full border-4 border-white bg-primary p-4 flex items-center justify-center shadow-xl">
+              <IconComponent className={cn("h-16 w-16 text-white")} />
+            </div>
+          </div>
+          <h2 className="mt-8 text-sm font-black uppercase tracking-widest text-primary animate-pulse">{t('achievements.toastTitle')}</h2>
+          <h3 className="text-3xl font-black mt-2 leading-tight">{t(achievement.name)}</h3>
+          <p className="text-xl font-bold text-accent mt-1">{t(achievement.unlockedTier.name)}</p>
+          <div className="my-6 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+          <p className="text-sm font-bold text-muted-foreground uppercase">{t('achievements.reward')}</p>
+          <div className="mt-2 flex items-center justify-center gap-3 text-4xl font-black text-yellow-400">
+            <Star className="h-10 w-10 fill-current" />
+            <span>+{achievement.unlockedTier.reward.score}</span>
+          </div>
+          <Button size="lg" className="mt-8 w-full h-16 text-2xl font-black rounded-2xl shadow-lg transform active:scale-95 transition-all" onClick={handleConfirm}>
+            <Check className="mr-2 h-6 w-6 stroke-[4]" />
+            {t('game.ok')}
+          </Button>
+        </div>
+      </div>
+    </SimpleDialog>
+  );
+};
+export default AchievementUnlockedDialog;
+
+===== src/components/game/FlashEffect.tsx =====
+"use client";
+import React from 'react';
+
+const FlashEffect = ({ active }: { active: boolean }) => { if (!active) return null; return <div className="fixed inset-0 bg-white pointer-events-none animate-flash z-[1000]" />; };
+
+export default FlashEffect;
+
+===== src/components/game/Game.tsx =====
+'use client';
+import React, { useState, useEffect, useReducer, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import GameBoard from './GameBoard';
+import GameHeader from './GameHeader';
+import LeftPanel from './LeftPanel';
+import RightPanel from './RightPanel';
+import GameOverDialog from './GameOverDialog';
+import ShopDialog from './ShopDialog';
+import LeaderboardDialog from './LeaderboardDialog';
+import AchievementsDialog from './AchievementsDialog';
+import AchievementUnlockedDialog from './AchievementToast';
+import LoginDialog from './LoginDialog';
+import HowToPlayDialog from './HowToPlayDialog';
+import LevelCompleteStats from './LevelCompleteStats';
+import WelcomeScreen from './WelcomeScreen';
+import FlashEffect from './FlashEffect';
+import { GRID_ROWS, GRID_COLS, BUBBLE_DIAMETER, BUBBLE_RADIUS, GAME_WIDTH, GAME_HEIGHT, BASE_SCORE, SCORE_MULTIPLIER_INCREMENT, FALLING_BUBBLE_SCORE, STONE_BUBBLE, COMBO_BONUS } from '@/lib/constants';
+import { getLevel, getAvailableColors } from '@/lib/levels';
+import { getBubbleCenterPosition, getNeighbors } from '@/lib/game-logic';
+import { dropStyle, cn } from '@/lib/utils';
+import type { Action, GameState, GameStatus, BonusType, PoppedBubble, Trajectory, BubbleColor, Particle } from '@/lib/game-types';
+import { useI18n } from '@/hooks/useI18n';
+import { useAchievements } from '@/hooks/useAchievements';
+import { platform } from '@/lib/platform';
+import { ArrowRightLeft, Crosshair, Palette, AlertTriangle } from 'lucide-react';
+
+function gameReducer(state: GameState, action: Action): GameState {
+  switch (action.type) {
+    case 'START_LEVEL': {
+      const ld = getLevel(action.level);
+      const grid = JSON.parse(JSON.stringify(ld.grid));
+      const colors = getAvailableColors(grid);
+      const isNew = !action.savedState;
+      const base = {
+        score: isNew ? 0 : (action.savedState?.score ?? 0),
+        bombBonusCount: isNew ? 0 : (action.savedState?.bombBonusCount ?? 0),
+        bonusesUsed: isNew ? 0 : (action.savedState?.bonusesUsed ?? 0),
+        totalScoreSpent: isNew ? 0 : (action.savedState?.totalScoreSpent ?? 0),
+        pacifistLevelsWon: isNew ? 0 : (action.savedState?.pacifistLevelsWon ?? 0),
+        swapsUsed: isNew ? 0 : (action.savedState?.swapsUsed ?? 0),
+        totalRestarts: isNew ? 0 : (action.savedState?.totalRestarts ?? 0),
+        sniperShots: isNew ? 0 : (action.savedState?.sniperShots ?? 0),
+        maxBubblesClearedInOneShot: isNew ? 0 : (action.savedState?.maxBubblesClearedInOneShot ?? 0),
+      };
+      return {
+        ...state, ...base,
+        level: action.level, grid, availableColors: colors,
+        status: 'playing',
+        currentBubble: colors[Math.floor(Math.random() * colors.length)],
+        nextBubble: colors[Math.floor(Math.random() * colors.length)],
+        flyingBubble: null, activeBonus: null, comboCounter: 0,
+        poppingBubbles: [], bombExploded: false, bombExplosionPosition: null,
+        gridDropKey: state.gridDropKey + 1,
+        levelStartTime: Date.now(),
+        successfulShotsThisLevel: 0, bubblesPoppedThisLevel: 0, maxComboThisLevel: 0,
+        levelStartState: base as any, clearedColor: null,
+        panicModeActive: false, panicModeTimer: 0,
+        shotsUntilPanic: Math.floor(Math.random() * 11) + 15,
+        shotsSinceDrop: 0, shotsBeforeDrop: 5,
+      };
+    }
+    case 'SHOOT_BUBBLE': {
+      if (state.status !== 'playing' || state.flyingBubble) return state;
+      
+      let fc = state.currentBubble;
+      let bc = state.bombBonusCount;
+      
+      if (state.activeBonus === 'bomb' && bc > 0) { 
+        fc = 'bomb'; 
+        bc--; 
+      }
+      
+      const newShotsUntilPanic = state.panicModeActive ? Math.floor(Math.random() * 11) + 15 : state.shotsUntilPanic - 1;
+      const isActivatingPanic = !state.panicModeActive && newShotsUntilPanic <= 0;
+      
+      return {
+        ...state,
+        flyingBubble: { 
+          x: GAME_WIDTH / 2, 
+          y: GAME_HEIGHT - BUBBLE_RADIUS, 
+          color: fc, 
+          angle: action.angle, 
+          diameter: BUBBLE_DIAMETER * 0.95 
+        },
+        currentBubble: state.nextBubble,
+        nextBubble: state.availableColors[Math.floor(Math.random() * state.availableColors.length)],
+        shotsTaken: state.shotsTaken + 1,
+        activeBonus: null,
+        bombBonusCount: Math.max(0, bc),
+        poppingBubbles: [], 
+        bombExploded: false, 
+        bombExplosionPosition: null,
+        panicModeActive: isActivatingPanic,
+        panicModeTimer: isActivatingPanic ? 5 : 0,
+        shotsUntilPanic: isActivatingPanic ? Math.floor(Math.random() * 11) + 15 : newShotsUntilPanic,
+      };
+    }
+    case 'PANIC_TICK': {
+      if (!state.panicModeActive) return state;
+      return { ...state, panicModeTimer: Math.max(0, state.panicModeTimer - 1) };
+    }
+    case 'UPDATE_FLYING_BUBBLE': {
+      return { ...state, flyingBubble: action.flyingBubble };
+    }
+    case 'PROCESS_ATTACHED_BUBBLE': {
+      const { row, col } = action;
+      if (!state.flyingBubble) return state;
+      
+      const oldColorsSet = new Set(state.availableColors);
+      let ng = JSON.parse(JSON.stringify(state.grid));
+      const popped: PoppedBubble[] = [];
+      let ascore = 0, exploded = false, explosionPos = null;
+      const fc = state.flyingBubble.color;
+      let hasMatch = false;
+
+      if (row !== -1 && col !== -1) {
+        if (fc === 'bomb') {
+          exploded = true;
+          explosionPos = { x: state.flyingBubble.x, y: state.flyingBubble.y };
+          const center = getBubbleCenterPosition(row, col);
+          const rad = BUBBLE_DIAMETER * 2.5;
+          for (let r = 0; r < GRID_ROWS; r++) {
+            const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+            for (let c = 0; c < cols; c++) {
+              if (ng[r] && ng[r][c] && ng[r][c] !== STONE_BUBBLE) {
+                const p = getBubbleCenterPosition(r, c);
+                if (Math.hypot(center.x - p.x, center.y - p.y) < rad) {
+                  popped.push({ key: `b-${r}-${c}-${Date.now()}-${Math.random()}`, x: p.x - BUBBLE_RADIUS, y: p.y - BUBBLE_RADIUS, color: ng[r][c], type: 'pop' });
+                  ng[r][c] = null; ascore += 10;
+                }
+              }
+            }
+          }
+          hasMatch = true;
+        } else {
+          ng[row][col] = fc;
+          const match = ng[row][col];
+          const cluster: [number, number][] = [];
+          const q: [number, number][] = [[row, col]];
+          const seen = new Set([`${row},${col}`]);
+          
+          while (q.length > 0) {
+            const [r, c] = q.shift()!;
+            cluster.push([r, c]);
+            getNeighbors(r, c).forEach(([nr, nc]) => {
+              if (ng[nr] && ng[nr][nc] === match && !seen.has(`${nr},${nc}`)) { 
+                seen.add(`${nr},${nc}`); 
+                q.push([nr, nc]); 
+              }
+            });
+          }
+          
+          if (cluster.length >= 3) {
+            hasMatch = true;
+            cluster.forEach(([r, c]) => {
+              const p = getBubbleCenterPosition(r, c);
+              popped.push({ key: `p-${r}-${c}-${Date.now()}-${Math.random()}`, x: p.x - BUBBLE_RADIUS, y: p.y - BUBBLE_RADIUS, color: ng[r][c], type: 'pop' });
+              ng[r][c] = null;
+            });
+            ascore += BASE_SCORE + (cluster.length - 3) * SCORE_MULTIPLIER_INCREMENT;
+          }
+        }
+        
+        const connected = new Set<string>();
+        const qf: [number, number][] = [];
+        for (let c = 0; c < GRID_COLS; c++) { 
+          if (ng[0] && ng[0][c]) { 
+            connected.add(`0,${c}`); 
+            qf.push([0, c]); 
+          }
+        }
+        while (qf.length > 0) {
+          const [r, c] = qf.shift()!;
+          getNeighbors(r, c).forEach(([nr, nc]) => {
+            if (ng[nr] && ng[nr][nc] && !connected.has(`${nr},${nc}`)) { 
+              connected.add(`${nr},${nc}`); 
+              qf.push([nr, nc]); 
+            }
+          });
+        }
+        for (let r = 0; r < GRID_ROWS; r++) {
+          const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+          for (let c = 0; c < cols; c++) {
+            if (ng[r] && ng[r][c] && !connected.has(`${r},${c}`)) {
+              const p = getBubbleCenterPosition(r, c);
+              popped.push({ key: `f-${r}-${c}-${Date.now()}-${Math.random()}`, x: p.x - BUBBLE_RADIUS, y: p.y - BUBBLE_RADIUS, color: ng[r][c], type: 'fall' });
+              ng[r][c] = null; 
+              ascore += FALLING_BUBBLE_SCORE;
+            }
+          }
+        }
+      }
+
+      let newShotsSinceDrop = state.shotsSinceDrop;
+      if (!hasMatch) {
+        newShotsSinceDrop++;
+      } else {
+        newShotsSinceDrop = 0;
+      }
+
+      if (newShotsSinceDrop >= state.shotsBeforeDrop) {
+        newShotsSinceDrop = 0;
+        const newRow = Array(GRID_COLS).fill(null).map(() => {
+          const available = getAvailableColors(ng);
+          return Math.random() > 0.3 && available.length > 0 ? available[Math.floor(Math.random() * available.length)] : null;
+        });
+        ng.unshift(newRow);
+        ng.pop();
+      }
+
+      let isGO = false;
+      const line = GAME_HEIGHT - BUBBLE_DIAMETER * 2.1;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        const rowData = ng[r];
+        if (rowData) {
+          for (let c = 0; c < rowData.length; c++) {
+            if (rowData[c]) {
+              const { y } = getBubbleCenterPosition(r, c);
+              if (y + BUBBLE_RADIUS >= line) { isGO = true; break; }
+            }
+          }
+        }
+        if (isGO) break;
+      }
+
+      const nextColorsAll = getAvailableColors(ng);
+      const nextColorsSet = new Set(nextColorsAll);
+      const clearedColor = Array.from(oldColorsSet).find(c => c && c !== STONE_BUBBLE && !nextColorsSet.has(c));
+      
+      let nextColors = nextColorsAll;
+      if (clearedColor && nextColors.includes(clearedColor)) nextColors = nextColors.filter(c => c !== clearedColor);
+
+      let newCur = state.currentBubble, newNext = state.nextBubble;
+      if (newCur && !nextColors.includes(newCur as string)) newCur = nextColors.length > 0 ? nextColors[Math.floor(Math.random() * nextColors.length)] : null;
+      if (newNext && !nextColors.includes(newNext as string)) newNext = nextColors.length > 0 ? nextColors[Math.floor(Math.random() * nextColors.length)] : null;
+
+      let bubblesRemaining = false;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        const row = ng[r];
+        if (row) {
+          for (let c = 0; c < row.length; c++) {
+            if (row[c] && row[c] !== STONE_BUBBLE) {
+              bubblesRemaining = true;
+              break;
+            }
+          }
+        }
+        if (bubblesRemaining) break;
+      }
+
+      let status: GameStatus = bubblesRemaining ? state.status : 'level_complete';
+      if (isGO) status = 'lost';
+
+      const newCombo = popped.length > 0 ? state.comboCounter + 1 : 0;
+
+      return {
+        ...state, grid: ng,
+        score: state.score + ascore + (popped.length > 0 ? COMBO_BONUS * state.comboCounter : 0),
+        status, poppingBubbles: popped, flyingBubble: null, bombExploded: exploded, bombExplosionPosition: explosionPos,
+        availableColors: nextColors,
+        currentBubble: newCur,
+        nextBubble: newNext || (nextColors.length > 0 ? nextColors[Math.floor(Math.random() * nextColors.length)] : null),
+        comboCounter: newCombo,
+        bubblesPoppedThisLevel: state.bubblesPoppedThisLevel + popped.length,
+        successfulShotsThisLevel: popped.length > 0 ? state.successfulShotsThisLevel + 1 : state.successfulShotsThisLevel,
+        maxComboThisLevel: Math.max(state.maxComboThisLevel, newCombo),
+        clearedColor: clearedColor ? { color: clearedColor, key: `cl-${Date.now()}` } : null,
+        shotsSinceDrop: newShotsSinceDrop,
+      };
+    }
+    case 'CLEAR_CLEARED_COLOR': return { ...state, clearedColor: null };
+    case 'SWAP_BUBBLES': return { ...state, currentBubble: state.nextBubble, nextBubble: state.currentBubble, swapsUsed: state.swapsUsed + 1 };
+    case 'PAUSE_TOGGLE': return { ...state, status: state.status === 'paused' ? 'playing' : 'paused' };
+    case 'START_NEW_GAME': return gameReducer(state, { type: 'START_LEVEL', level: 1 });
+    case 'NEXT_LEVEL': return gameReducer(state, { type: 'START_LEVEL', level: state.level + 1, savedState: state });
+    case 'PROCEED_TO_SHOP': return { ...state, status: 'shop' };
+    case 'REVIVE_GAME': return { ...state, status: 'playing', grid: state.grid.map((r, i) => i < GRID_ROWS - 6 ? r : r.map(() => null)) as any };
+    case 'SELECT_BONUS': {
+      if (state.activeBonus === action.bonus) {
+        return { ...state, activeBonus: null };
+      }
+      const hasBonus = state.bombBonusCount > 0;
+      if (!hasBonus) return state;
+      return { ...state, activeBonus: action.bonus };
+    }
+    case 'BUY_BONUS': return { ...state, score: state.score - action.cost, bombBonusCount: state.bombBonusCount + 1, totalScoreSpent: state.totalScoreSpent + action.cost };
+    case 'ADD_BONUS': return { ...state, bombBonusCount: state.bombBonusCount + 1 };
+    case 'ADD_SCORE': return { ...state, score: state.score + action.amount };
+    default: return state;
+  }
+}
+
+const Game = () => {
+  const { t } = useI18n();
+  const { playerAchievements, unlockedQueue, acknowledgeUnlock, saveAchievements, loadAchievements, checkAndUnlockAchievements } = useAchievements();
+  
+  const [welcomeState, setWelcomeState] = useState<'loading' | 'select' | 'playing'>('loading');
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [playerInfo, setPlayerInfo] = useState<any>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [sdkError, setSdkError] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  const [state, dispatch] = useReducer(gameReducer, {
+    level: 1, grid: [], availableColors: [], shotsTaken: 0, shotsSinceDrop: 0, shotsBeforeDrop: 5,
+    score: 0, status: 'ready', currentBubble: null, nextBubble: null, flyingBubble: null,
+    activeBonus: null, bombBonusCount: 0, bonusesUsed: 0, comboCounter: 0,
+    poppingBubbles: [], bombExploded: false, bombExplosionPosition: null, comboDisplay: null,
+    gridDropKey: 0, panicModeActive: false, panicModeTimer: 0, shotsUntilPanic: 15, clearedColor: null,
+    wasLastShotPanic: false, levelStartState: null, levelStartTime: 0, successfulShotsThisLevel: 0,
+    bubblesPoppedThisLevel: 0, maxComboThisLevel: 0, bonusesUsedThisLevel: 0, pacifistLevelsWon: 0,
+    swapsUsed: 0, totalScoreSpent: 0, totalRestarts: 0, sniperShots: 0, maxBubblesClearedInOneShot: 0,
+  } as any);
+
+  const [scale, setScale] = useState(1);
+  const [mousePos, setMousePos] = useState({ x: GAME_WIDTH / 2, y: GAME_HEIGHT - BUBBLE_RADIUS });
+  const [isMuted, setIsMuted] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [adIsShowing, setAdIsShowing] = useState(false);
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isShopOpen, setIsShopOpen] = useState(false);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
+  const [isHowToPlayOpen, setIsHowToPlayOpen] = useState(false);
+  const [isLoginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [isLoginProcessing, setIsLoginProcessing] = useState(false);
+  const [flashActive, setFlashActive] = useState(false);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
+  const [comboDisplayContent, setComboDisplayContent] = useState<{ count: number; key: string } | null>(null);
+  const [screenFlash, setScreenFlash] = useState<string | null>(null);
+  const [clearEffectPhase, setClearEffectPhase] = useState<'idle' | 'prepare' | 'burst' | 'complete'>('idle');
+  
+  const gameWrapperRef = useRef<HTMLDivElement>(null);
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const soundsRef = useRef<any>(null);
+  const toneModuleRef = useRef<any>(null);
+  const pannerRef = useRef<any>(null);
+  const gameReadyCalled = useRef(false);
+  const prevPanicActive = useRef(false);
+  const stateRef = useRef(state);
+  const animationIdRef = useRef<number | null>(null);
+  const prevShotsSinceDropRef = useRef(0);
+  const lastShotHitRef = useRef(false);
+
+  // Флаг для предотвращения повторных вызовов
+  const isProcessingExplosion = useRef(false);
+
+  useEffect(() => { stateRef.current = state; }, [state]);
+  useEffect(() => { setIsMounted(true); }, []);
+
+  const handleResize = useCallback(() => {
+    const wrapper = gameWrapperRef.current;
+    if (!wrapper) return;
+    
+    setTimeout(() => {
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      const availableWidth = rect.width;
+      const availableHeight = rect.height;
+      
+      if (availableWidth === 0 || availableHeight === 0) return;
+
+      const scaleX = (availableWidth - 32) / GAME_WIDTH;
+      const scaleY = (availableHeight - 32) / GAME_HEIGHT;
+      
+      let newScale = Math.min(scaleX, scaleY);
+      newScale = Math.min(1.2, Math.max(0.4, newScale));
+      
+      setScale(newScale);
+    }, 50);
+  }, []);
+
+  useLayoutEffect(() => {
+    const onLoad = () => {
+      setTimeout(handleResize, 150);
+    };
+    
+    if (document.readyState === 'complete') {
+      setTimeout(handleResize, 150);
+    } else {
+      window.addEventListener('load', onLoad);
+      return () => window.removeEventListener('load', onLoad);
+    }
+  }, [handleResize]);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    const wrapper = gameWrapperRef.current;
+    if (!wrapper) return;
+    
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    
+    resizeObserver.observe(wrapper);
+    window.addEventListener('resize', handleResize);
+    
+    const timer = setTimeout(handleResize, 200);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, [isMounted, handleResize]);
+
+  useEffect(() => {
+    if (state.grid && state.grid.length > 0 && isMounted) {
+      const timer = setTimeout(handleResize, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [state.grid, isMounted, handleResize]);
+
+  // Функция для создания взрыва (один раз)
+  const createExplosion = useCallback((x: number, y: number, color: string, isBig: boolean = false) => {
+    // Защита от повторных вызовов
+    if (isProcessingExplosion.current) return;
+    isProcessingExplosion.current = true;
+    
+    const count = isBig ? 40 : 25;
+    const particles: Particle[] = [];
+    
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * (isBig ? 6 : 4);
+      
+      particles.push({
+        key: `exp-${Date.now()}-${i}-${Math.random()}`,
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        lifespan: 35 + Math.random() * 20,
+        size: 2 + Math.random() * (isBig ? 4 : 3),
+        color: i % 3 === 0 ? '#FFFFFF' : color,
+        type: 'burst'
+      });
+    }
+    
+    particlesRef.current.push(...particles);
+    
+    // Сбрасываем флаг через таймер
+    setTimeout(() => {
+      isProcessingExplosion.current = false;
+    }, 100);
+  }, []);
+
+  // Императивная обработка взрывов - вызывается напрямую из PROCESS_ATTACHED_BUBBLE
+  // Добавим отдельный эффект, который срабатывает только при изменении bombExploded
+  useEffect(() => {
+    if (state.bombExploded && state.bombExplosionPosition && !isProcessingExplosion.current) {
+      createExplosion(state.bombExplosionPosition.x, state.bombExplosionPosition.y, '#FF6600', true);
+    }
+  }, [state.bombExploded, state.bombExplosionPosition, createExplosion]);
+
+  // Обработка появления poppingBubbles - создаём взрывы для каждого лопнувшего пузыря
+  useEffect(() => {
+    if (state.poppingBubbles.length > 0) {
+      const validBubbles = state.poppingBubbles.filter(b => b.type === 'pop');
+      
+      if (validBubbles.length > 0 && !isProcessingExplosion.current) {
+        validBubbles.forEach(b => {
+          if (b.color) {
+            createExplosion(b.x + BUBBLE_RADIUS, b.y + BUBBLE_RADIUS, b.color as string, false);
+          }
+        });
+        
+        // Звуки
+        if (validBubbles.length >= 5) {
+          safePlay('bigPop', "C4", "8n");
+        } else if (validBubbles.length > 0) {
+          const note = ["C4", "E4", "G4"][Math.min(validBubbles.length - 1, 2)] || "C4";
+          safePlay('pop', note, "16n");
+        }
+        
+        // Комбо эффект
+        if (state.comboCounter >= 3 && (state.comboCounter % 3 === 0 || state.comboCounter === 3)) {
+          setComboDisplayContent({ count: state.comboCounter, key: `combo-${Date.now()}` });
+          const comboNote = ["C5", "E5", "G5", "C6"][Math.min(state.comboCounter - 3, 3)];
+          safePlay('comboSound', comboNote, "8n");
+          setTimeout(() => setComboDisplayContent(null), 1000);
+        }
+      }
+    }
+  }, [state.poppingBubbles, state.comboCounter, createExplosion]);
+
+  const startAudio = async () => {
+    if (toneModuleRef.current) {
+      if (toneModuleRef.current.context.state !== 'running') await toneModuleRef.current.context.resume();
+      return;
+    }
+    try {
+      const tone = await import('tone');
+      await tone.start();
+      toneModuleRef.current = tone;
+      
+      const masterVolume = new tone.Volume(-4).toDestination();
+      const mainLimiter = new tone.Limiter(-1).connect(masterVolume);
+      
+      const masterCompressor = new tone.Compressor({ 
+        threshold: -22, 
+        ratio: 4, 
+        attack: 0.003, 
+        release: 0.15 
+      }).connect(mainLimiter);
+      
+      const gamePanner = new tone.Panner(0).connect(masterCompressor);
+      pannerRef.current = gamePanner;
+      
+      const reverb = new tone.Reverb({ decay: 1.8, wet: 0.25 }).connect(gamePanner);
+      const largeReverb = new tone.Reverb({ decay: 3.5, wet: 0.45 }).connect(masterCompressor);
+      const delay = new tone.FeedbackDelay({ delayTime: 0.15, feedback: 0.2, wet: 0.15 }).connect(reverb);
+      const chorus = new tone.Chorus(4, 2.0, 0.4).start().connect(reverb);
+      
+      const shoot = new tone.MonoSynth({
+        oscillator: { type: 'triangle' },
+        filter: { Q: 2, type: 'lowpass', frequency: 1200 },
+        envelope: { attack: 0.002, decay: 0.08, sustain: 0.1, release: 0.05 },
+        filterEnvelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05, baseFrequency: 300, octaves: 2.5 }
+      }).connect(delay);
+      shoot.volume.value = -6;
+      
+      const pop = new tone.FMSynth({ 
+        harmonicity: 1.5, 
+        modulationIndex: 4, 
+        oscillator: { type: 'sine' },
+        modulation: { type: 'square' },
+        envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.08 }
+      }).connect(reverb);
+      pop.volume.value = -10;
+      
+      const bigPop = new tone.FMSynth({ 
+        harmonicity: 2, 
+        modulationIndex: 6, 
+        envelope: { attack: 0.002, decay: 0.12, sustain: 0, release: 0.15 } 
+      }).connect(reverb);
+      bigPop.volume.value = -8;
+      
+      const bombExplosion = new tone.MembraneSynth({ 
+        pitchDecay: 0.2, 
+        octaves: 10, 
+        envelope: { attack: 0.001, decay: 0.8, sustain: 0.01, release: 0.5 } 
+      }).connect(masterCompressor);
+      bombExplosion.volume.value = 2;
+      
+      const explosionNoise = new tone.NoiseSynth({ 
+        noise: { type: 'white' }, 
+        envelope: { attack: 0.005, decay: 0.6, sustain: 0, release: 0.4 } 
+      }).connect(new tone.Filter({
+        type: 'lowpass',
+        frequency: 2500,
+        rolloff: -24
+      }).connect(masterCompressor));
+      explosionNoise.volume.value = -2;
+
+      const colorClearSynth = new tone.Synth({
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.005, decay: 0.12, sustain: 0.1, release: 0.3 }
+      }).connect(chorus);
+      colorClearSynth.volume.value = -8;
+
+      const wallBounce = new tone.MonoSynth({
+        oscillator: { type: 'triangle' },
+        filter: { Q: 1, type: 'highpass', frequency: 1500 },
+        envelope: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.02 }
+      }).connect(gamePanner);
+      wallBounce.volume.value = -14;
+      
+      const victory = new tone.PolySynth(tone.Synth, { 
+        oscillator: { type: 'fatsine', count: 3, spread: 25 }, 
+        envelope: { attack: 0.15, decay: 0.3, sustain: 0.5, release: 1.5 } 
+      }).connect(largeReverb);
+      victory.volume.value = -6;
+      
+      const lose = new tone.PolySynth(tone.Synth, { 
+        oscillator: { type: 'sawtooth' },
+        envelope: { attack: 0.2, decay: 0.5, sustain: 0.4, release: 2.0 } 
+      }).connect(new tone.FeedbackDelay(0.25, 0.4).connect(largeReverb));
+      lose.volume.value = -10;
+      
+      const comboSound = new tone.Synth({ 
+        oscillator: { type: 'triangle' }, 
+        envelope: { attack: 0.005, decay: 0.15, sustain: 0.3, release: 0.2 } 
+      }).connect(chorus);
+      comboSound.volume.value = -6;
+      
+      const uiClick = new tone.Synth({
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.04 }
+      }).connect(masterCompressor);
+      uiClick.volume.value = -12;
+      
+      const purchase = new tone.Synth({ 
+        oscillator: { type: 'sine' }, 
+        envelope: { attack: 0.01, decay: 0.12, sustain: 0, release: 0.15 } 
+      }).connect(chorus);
+      purchase.volume.value = -6;
+      
+      const achievementChord = new tone.PolySynth(tone.Synth, { 
+        oscillator: { type: 'fatsine', count: 3, spread: 20 }, 
+        envelope: { attack: 0.06, decay: 0.6, sustain: 0.5, release: 1.2 } 
+      }).connect(largeReverb);
+      achievementChord.volume.value = -10;
+      
+      const panicBeep = new tone.Synth({ 
+        oscillator: { type: 'triangle' }, 
+        envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.02 } 
+      }).connect(masterCompressor);
+      panicBeep.volume.value = -6;
+      
+      const panicStart = new tone.PolySynth(tone.Synth, { 
+        oscillator: { type: 'sawtooth' }, 
+        envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.3 } 
+      }).connect(reverb);
+      panicStart.volume.value = -12;
+      
+      const gridDrop = new tone.MonoSynth({
+        oscillator: { type: 'sine' },
+        filter: { type: 'lowpass', frequency: 300, Q: 2 },
+        envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 },
+        filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.05, baseFrequency: 200, octaves: 2 }
+      }).connect(masterCompressor);
+      gridDrop.volume.value = -8;
+      
+      const missSound = new tone.Synth({
+        oscillator: { type: 'triangle' },
+        envelope: { attack: 0.002, decay: 0.05, sustain: 0, release: 0.04 }
+      }).connect(masterCompressor);
+      missSound.volume.value = -10;
+      
+      soundsRef.current = { 
+        shoot, pop, bigPop, bombExplosion, explosionNoise, colorClearSynth, wallBounce, 
+        victory, lose, comboSound, uiClick, purchase, achievementChord, panicBeep, panicStart,
+        gridDrop, missSound
+      };
+      
+      if (isMuted || adIsShowing) toneModuleRef.current.getDestination().mute = true;
+    } catch (e) {
+      console.error('Audio initialization error:', e);
+    }
+  };
+
+  const safePlay = (name: string, note: string = "C4", duration: string = "8n", xPos?: number) => {
+    if (isMuted || adIsShowing || !soundsRef.current || !toneModuleRef.current) return;
+    const synth = soundsRef.current[name];
+    if (!synth) return;
+    try {
+      if (toneModuleRef.current.context.state !== 'running') {
+        toneModuleRef.current.context.resume();
+      }
+      
+      if (pannerRef.current && typeof xPos === 'number') {
+        const panValue = (xPos / GAME_WIDTH) * 2 - 1;
+        pannerRef.current.pan.value = Math.max(-1, Math.min(1, panValue));
+      } else if (pannerRef.current) {
+        pannerRef.current.pan.value = 0;
+      }
+
+      const now = toneModuleRef.current.now();
+      
+      if (name === 'victory' || name === 'lose' || name === 'achievementChord') {
+        const notes = note.split(',');
+        synth.triggerAttackRelease(notes, duration, now);
+      } else {
+        synth.triggerAttackRelease(note, duration, now);
+      }
+    } catch (e) {}
+  };
+
+  const handlePointerUpdate = useCallback((e: React.PointerEvent) => {
+    if (!gameContainerRef.current) return;
+    const rect = gameContainerRef.current.getBoundingClientRect();
+    let relativeX = (e.clientX - rect.left) / scale;
+    let relativeY = (e.clientY - rect.top) / scale;
+    setMousePos({ x: Math.max(0, Math.min(GAME_WIDTH, relativeX)), y: Math.max(0, Math.min(GAME_HEIGHT, relativeY)) });
+  }, [scale]);
+
+  const handleShoot = useCallback(async () => {
+    await startAudio();
+    if (stateRef.current.status !== 'playing' || stateRef.current.flyingBubble || adIsShowing) return;
+    
+    const sy = GAME_HEIGHT - BUBBLE_RADIUS;
+    if (!stateRef.current.panicModeActive && mousePos.y >= sy) return;
+    
+    let shootAngle = (Math.atan2(mousePos.x - GAME_WIDTH / 2, sy - mousePos.y) * 180) / Math.PI;
+    
+    safePlay('shoot', "C3", "16n", mousePos.x);
+    
+    const currentBonus = stateRef.current.activeBonus;
+    
+    if (currentBonus === 'bomb' && stateRef.current.bombBonusCount > 0) {
+      safePlay('uiClick', "G5", "32n");
+    }
+    
+    lastShotHitRef.current = false;
+    
+    dispatch({ 
+      type: 'SHOOT_BUBBLE', 
+      angle: shootAngle
+    });
+  }, [adIsShowing, mousePos]);
+
+  useEffect(() => {
+    if (state.clearedColor && clearEffectPhase === 'idle') {
+      const color = state.clearedColor.color as string;
+      setClearEffectPhase('prepare');
+      setShakeIntensity(15);
+      setScreenFlash(color);
+      
+      safePlay('colorClearSynth', "C5", "4n");
+
+      setTimeout(() => {
+        setClearEffectPhase('burst');
+        setShakeIntensity(20);
+        
+        safePlay('bombExplosion', "C2", "2n", GAME_WIDTH / 2);
+        safePlay('explosionNoise', "C2", "2n", GAME_WIDTH / 2);
+        
+        createExplosion(GAME_WIDTH / 2, GAME_HEIGHT / 2.5, color, true);
+        
+        setTimeout(() => {
+          setClearEffectPhase('complete');
+          setShakeIntensity(0);
+          setScreenFlash(null);
+          dispatch({ type: 'CLEAR_CLEARED_COLOR' });
+          setClearEffectPhase('idle');
+        }, 800);
+      }, 500);
+    }
+  }, [state.clearedColor, clearEffectPhase, createExplosion]);
+
+  useEffect(() => {
+    if (state.status === 'lost') {
+      safePlay('lose', "C3,D#3,G3,C4", "1n");
+    } else if (state.status === 'level_complete') {
+      safePlay('victory', "C4,E4,G4,C5", "1n");
+    }
+  }, [state.status]);
+
+  useEffect(() => {
+    if (state.panicModeActive && state.status === 'playing') {
+      if (!prevPanicActive.current) {
+        safePlay('panicStart', "C4,E4", "8n");
+        prevPanicActive.current = true;
+      }
+      const timer = setInterval(() => {
+        const s = stateRef.current;
+        if (s.panicModeTimer > 0) {
+          const pitch = ["G4", "A4", "B4", "C5", "D5"][s.panicModeTimer - 1] || "G4";
+          safePlay('panicBeep', pitch, "16n");
+          dispatch({ type: 'PANIC_TICK' });
+        } else {
+          handleShoot();
+          clearInterval(timer);
+        }
+      }, 1000);
+      return () => clearInterval(timer);
+    } else {
+      prevPanicActive.current = false;
+    }
+  }, [state.panicModeActive, state.status, handleShoot]);
+
+  // Звук при опускании ряда
+  useEffect(() => {
+    if (prevShotsSinceDropRef.current !== 0 && 
+        state.shotsSinceDrop === 0 && 
+        state.shotsTaken > 0) {
+      safePlay('gridDrop', "C2", "4n");
+    }
+    prevShotsSinceDropRef.current = state.shotsSinceDrop;
+  }, [state.shotsSinceDrop, state.shotsTaken]);
+
+  useEffect(() => {
+    let active = true;
+    const step = () => {
+      if (!active) return;
+      const s = stateRef.current;
+      if (s.status === 'playing' && s.flyingBubble) {
+        const fb = { ...s.flyingBubble };
+        fb.x += 25 * Math.sin(fb.angle * Math.PI / 180);
+        fb.y -= 25 * Math.cos(fb.angle * Math.PI / 180);
+        
+        if (fb.x <= BUBBLE_RADIUS || fb.x >= GAME_WIDTH - BUBBLE_RADIUS) { 
+          fb.angle = -fb.angle; 
+          fb.x = Math.max(BUBBLE_RADIUS, Math.min(fb.x, GAME_WIDTH - BUBBLE_RADIUS)); 
+          
+          safePlay('wallBounce', "G6", "32n", fb.x);
+        }
+        
+        let hit = fb.y <= BUBBLE_RADIUS;
+        if (!hit) {
+          for (let r = 0; r < GRID_ROWS; r++) {
+            const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+            for (let c = 0; c < cols; c++) {
+              if (s.grid[r] && s.grid[r][c]) {
+                const p = getBubbleCenterPosition(r, c);
+                if (Math.hypot(fb.x - p.x, fb.y - p.y) < BUBBLE_DIAMETER * 0.75) { hit = true; break; }
+              }
+            }
+            if (hit) break;
+          }
+        }
+        if (hit) {
+          let md = Infinity, hR = -1, hC = -1;
+          for (let r = 0; r < GRID_ROWS; r++) {
+            const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+            for (let c = 0; c < cols; c++) {
+              if (!s.grid[r] || !s.grid[r][c]) {
+                const p = getBubbleCenterPosition(r, c);
+                const d = Math.hypot(fb.x - p.x, fb.y - p.y);
+                if (d < md) { md = d; hR = r; hC = c; }
+              }
+            }
+          }
+          dispatch({ type: 'PROCESS_ATTACHED_BUBBLE', row: hR, col: hC });
+        } else {
+          dispatch({ type: 'UPDATE_FLYING_BUBBLE', flyingBubble: fb });
+        }
+      }
+      animationIdRef.current = requestAnimationFrame(step);
+    };
+    animationIdRef.current = requestAnimationFrame(step);
+    return () => { active = false; if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); };
+  }, []);
+
+  const trajectory = useMemo(() => {
+    if (state.status !== 'playing' || state.flyingBubble || state.panicModeActive) return { points: [], color: null, endBubble: null };
+    const sy = GAME_HEIGHT - BUBBLE_RADIUS;
+    const angle = (Math.atan2(mousePos.x - GAME_WIDTH / 2, sy - mousePos.y) * 180) / Math.PI;
+    let sx = GAME_WIDTH / 2, sy2 = sy, sa = angle, pts = [{ x: sx, y: sy2 }], eb = null;
+    for (let i = 0; i < 60; i++) {
+      sx += 25 * Math.sin(sa * Math.PI / 180); sy2 -= 25 * Math.cos(sa * Math.PI / 180);
+      if (sx <= BUBBLE_RADIUS || sx >= GAME_WIDTH - BUBBLE_RADIUS) { sa = -sa; sx = Math.max(BUBBLE_RADIUS, Math.min(sx, GAME_WIDTH - BUBBLE_RADIUS)); pts.push({ x: sx, y: sy2 }); }
+      let hit = sy2 <= BUBBLE_RADIUS;
+      if (!hit) {
+        for (let r = 0; r < GRID_ROWS; r++) {
+          const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+          for (let c = 0; c < cols; c++) {
+            if (state.grid[r] && state.grid[r][c]) {
+              const p = getBubbleCenterPosition(r, c);
+              if (Math.hypot(sx - p.x, sy2 - p.y) < BUBBLE_DIAMETER * 0.75) { hit = true; break; }
+            }
+          }
+          if (hit) break;
+        }
+      }
+      if (hit) {
+        pts.push({ x: sx, y: sy2 });
+        let md = Infinity, hR = -1, hC = -1;
+        for (let r = 0; r < GRID_ROWS; r++) {
+          const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+          for (let c = 0; c < cols; c++) {
+            if (!state.grid[r] || !state.grid[r][c]) {
+              const p = getBubbleCenterPosition(r, c);
+              const d = Math.hypot(sx - p.x, sy2 - p.y);
+              if (d < md) { md = d; hR = r; hC = c; }
+            }
+          }
+        }
+        if (hR !== -1) { const pos = getBubbleCenterPosition(hR, hC); eb = { x: pos.x - BUBBLE_RADIUS, y: pos.y - BUBBLE_RADIUS, color: state.activeBonus || state.currentBubble }; }
+        break;
+      }
+    }
+    return { points: pts, color: state.activeBonus || state.currentBubble, endBubble: eb };
+  }, [state.status, state.flyingBubble, state.grid, state.currentBubble, state.activeBonus, mousePos, state.panicModeActive]);
+
+  const handleSyncLogin = async () => {
+    setIsSyncing(true);
+    try {
+      let auth = false;
+      try {
+        auth = await platform.isAuthorized();
+      } catch (e) {
+        console.warn('isAuthorized error:', e);
+      }
+      if (!auth) { 
+        try {
+          if (!await platform.openAuthDialog()) { 
+            setIsSyncing(false); 
+            return; 
+          }
+        } catch (e) {
+          console.warn('openAuthDialog error:', e);
+          setIsSyncing(false);
+          setSdkError(true);
+          return;
+        }
+      }
+      const p = await platform.getPlayer();
+      if (p) {
+        setIsAuthorized(true); 
+        setPlayerInfo({ name: p.getName(), avatar: p.getAvatar() });
+        try {
+          const data = await platform.playerData.get(); 
+          if (data?.achievements) loadAchievements(data.achievements);
+          if (data?.level) dispatch({ type: 'START_LEVEL', level: data.level, savedState: data });
+          else dispatch({ type: 'START_LEVEL', level: 1 });
+        } catch (e) {
+          console.warn('playerData.get error:', e);
+          dispatch({ type: 'START_LEVEL', level: 1 });
+        }
+        setWelcomeState('playing'); 
+        if (!gameReadyCalled.current) { 
+          try {
+            platform.gameReady(); 
+            platform.gameplay.ready(); 
+          } catch (e) {
+            console.warn('gameReady error:', e);
+          }
+          gameReadyCalled.current = true; 
+        }
+      } else {
+        dispatch({ type: 'START_LEVEL', level: 1 });
+        setWelcomeState('playing');
+      }
+    } catch (e) { 
+      console.error('Sync login error:', e);
+      setSdkError(true);
+      dispatch({ type: 'START_LEVEL', level: 1 });
+      setWelcomeState('playing');
+    } finally { 
+      setIsSyncing(false); 
+    }
+  };
+
+  const handleGuestLogin = () => { 
+    setWelcomeState('playing'); 
+    dispatch({ type: 'START_LEVEL', level: 1 }); 
+    if (!gameReadyCalled.current) { 
+      try {
+        platform.gameReady(); 
+        platform.gameplay.ready(); 
+      } catch (e) {
+        console.warn('gameReady error:', e);
+      }
+      gameReadyCalled.current = true; 
+    } 
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await platform.init();
+        setWelcomeState('select');
+      } catch (e: any) {
+        console.warn('Platform init failed, running in demo mode:', e?.message);
+        setWelcomeState('select');
+      }
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
+    };
+  }, []);
+
+  if (welcomeState !== 'playing') {
+    return <WelcomeScreen onGuestLogin={handleGuestLogin} onSyncLogin={handleSyncLogin} isPlatformReady={welcomeState === 'select'} isLoading={isSyncing} error={platformError} />;
+  }
+
+  return (
+    <div className="w-full h-full bg-sidebar flex flex-col lg:grid lg:grid-cols-[240px_1fr_240px] items-stretch justify-center shadow-2xl overflow-hidden" onPointerDown={startAudio} style={shakeIntensity > 0 ? { animation: `shake-screen ${shakeIntensity * 40}ms ease-out` } : {}}>
+      <LeftPanel score={state.score} level={state.level} nextBubble={state.nextBubble} onSwap={() => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'SWAP_BUBBLES' }); }} shotsUntilDrop={state.shotsBeforeDrop - state.shotsSinceDrop} shotsBeforeDrop={state.shotsBeforeDrop} gameStatus={state.status} theme={theme} />
+      <div className="flex flex-col flex-1 min-w-0 h-full relative overflow-hidden bg-background">
+        <GameHeader score={state.score} level={state.level} onShowLeaderboard={() => { safePlay('uiClick', "G5", "32n"); setIsLeaderboardOpen(true); }} onShowShop={() => { safePlay('uiClick', "G5", "32n"); setIsShopOpen(true); }} onShowAchievements={() => { safePlay('uiClick', "G5", "32n"); setIsAchievementsOpen(true); }} onShowHowToPlay={() => { safePlay('uiClick', "G5", "32n"); setIsHowToPlayOpen(true); }} className="lg:hidden shrink-0" isMuted={isMuted} onMuteToggle={() => setIsMuted(!isMuted)} onRestartLevel={() => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'START_LEVEL', level: state.level }); }} isAuthorized={isAuthorized} onLogin={() => setLoginDialogOpen(true)} playerInfo={playerInfo} onLogout={() => window.location.reload()} />
+        <main ref={gameWrapperRef} className="game-viewport">
+          <div 
+            ref={gameContainerRef} 
+            onPointerDown={handlePointerUpdate} 
+            onPointerMove={handlePointerUpdate} 
+            onPointerUp={handleShoot} 
+            className="game-container" 
+            style={{ 
+              width: GAME_WIDTH, 
+              height: GAME_HEIGHT, 
+              transform: `scale(${scale})`, 
+              transformOrigin: 'center center',
+              position: 'relative',
+              margin: '0 auto',
+              opacity: scale > 0 ? 1 : 0,
+              transition: 'opacity 0.1s ease'
+            }}
+          >
+            <GameBoard state={state} poppingBubbles={state.poppingBubbles} trajectoryPath={trajectory} particlesRef={particlesRef} shooterData={{ position: { x: GAME_WIDTH / 2 - BUBBLE_RADIUS, y: GAME_HEIGHT - BUBBLE_DIAMETER }, color: (state.status === 'playing' && !state.flyingBubble) ? (state.activeBonus || state.currentBubble) : null, diameter: BUBBLE_DIAMETER * 0.95 }} theme={theme} clearEffectPhase={clearEffectPhase} screenFlash={screenFlash} />
+            {state.panicModeActive && (
+              <div className="absolute top-10 left-0 right-0 z-50 flex flex-col items-center pointer-events-none">
+                <div className="bg-destructive/90 text-destructive-foreground px-6 py-2 rounded-full flex items-center gap-3 animate-pulse shadow-2xl border-2 border-white/20">
+                  <AlertTriangle className="w-8 h-8" />
+                  <span className="text-4xl font-black">{state.panicModeTimer}s</span>
+                </div>
+                <div className="mt-2 text-destructive font-black text-2xl uppercase tracking-tighter" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>Panic Mode!</div>
+              </div>
+            )}
+            {comboDisplayContent && (
+              <div key={comboDisplayContent.key} className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                <div className="animate-combo text-center">
+                  <span className="text-6xl font-black text-white" style={{ WebkitTextStroke: '3px hsl(var(--primary))', textShadow: '0 0 30px hsl(var(--primary))' }}>x{comboDisplayContent.count}</span>
+                  <span className="block text-3xl font-bold text-accent mt-1" style={{ textShadow: '0 0 15px hsl(var(--accent))' }}>{t('game.combo')}</span>
+                </div>
+              </div>
+            )}
+            <FlashEffect active={flashActive} />
+            {state.status === 'paused' && <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center text-white text-5xl font-black z-40" onClick={() => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'PAUSE_TOGGLE' }); }}>{t('game.paused')}</div>}
+          </div>
+        </main>
+        <footer className='w-full p-2 border-t bg-background/90 backdrop-blur-sm z-20 lg:hidden shrink-0'>
+          <div className="flex items-center justify-between gap-4 px-4 h-14">
+            <div className="flex flex-col items-center">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase">{t('game.nextBubbleLabel')}</p>
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10">{state.nextBubble && <div style={dropStyle(state.nextBubble as string, theme)} />}</div>
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-full" onClick={(e) => { e.stopPropagation(); safePlay('uiClick', "G5", "32n"); dispatch({ type: 'SWAP_BUBBLES' }); }}>
+                  <ArrowRightLeft className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Button 
+                  variant={state.activeBonus === 'bomb' ? 'default' : 'secondary'} 
+                  size="icon" 
+                  className="h-10 w-10 rounded-xl" 
+                  onClick={() => {
+                    safePlay('uiClick', "G5", "32n");
+                    if (state.activeBonus === 'bomb') {
+                      dispatch({ type: 'SELECT_BONUS', bonus: 'bomb' });
+                    } else if (state.bombBonusCount > 0) {
+                      dispatch({ type: 'SELECT_BONUS', bonus: 'bomb' });
+                    }
+                  }}
+                  disabled={state.bombBonusCount === 0}
+                >
+                  <Crosshair className="w-5 h-5" />
+                </Button>
+                <Badge className={cn("absolute -top-2 -right-2 h-5 min-w-5 flex items-center justify-center p-0.5 text-[10px] font-bold", state.activeBonus === 'bomb' && "bg-accent")}>
+                  {state.bombBonusCount}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </footer>
+      </div>
+      <RightPanel 
+        bombCount={state.bombBonusCount} 
+        activeBonus={state.activeBonus} 
+        onSelectBonus={(b) => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'SELECT_BONUS', bonus: b }); }} 
+        gameStatus={state.status} 
+        isPaused={state.status === 'paused'} 
+        onPauseToggle={() => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'PAUSE_TOGGLE' }); }} 
+        isMuted={isMuted} 
+        onMuteToggle={() => setIsMuted(!isMuted)} 
+        onShowLeaderboard={() => { safePlay('uiClick', "G5", "32n"); setIsLeaderboardOpen(true); }} 
+        onShowAchievements={() => { safePlay('uiClick', "G5", "32n"); setIsAchievementsOpen(true); }} 
+        onShowHowToPlay={() => { safePlay('uiClick', "G5", "32n"); setIsHowToPlayOpen(true); }} 
+        onShowShop={() => { safePlay('uiClick', "G5", "32n"); setIsShopOpen(true); }} 
+        onRestartLevel={() => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'START_LEVEL', level: state.level }); }} 
+        isAuthorized={isAuthorized} 
+        onLogin={() => setLoginDialogOpen(true)} 
+        playerInfo={playerInfo} 
+        isAdShowing={adIsShowing} 
+        onLogout={() => window.location.reload()} 
+      />
+      <GameOverDialog status={state.status} score={state.score} onRestart={() => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'START_NEW_GAME' }); }} onContinueWithAd={() => platform.showRewardedVideo({ onRewarded: () => dispatch({ type: 'REVIVE_GAME' }) })} />
+      <LevelCompleteStats isOpen={state.status === 'level_complete'} onContinue={() => { 
+        platform.showFullscreenAd({}); 
+        dispatch({ type: 'PROCEED_TO_SHOP' }); 
+      }} shots={state.shotsTaken} accuracy={state.shotsTaken > 0 ? Math.round((state.successfulShotsThisLevel / state.shotsTaken) * 100) : 0} bestCombo={state.maxComboThisLevel} bubblesPopped={state.bubblesPoppedThisLevel} timeSpent={state.levelStartTime ? Math.round((Date.now() - state.levelStartTime) / 1000) : 0} />
+      <ShopDialog 
+        isOpen={state.status === 'shop' || isShopOpen} 
+        status={state.status} 
+        score={state.score} 
+        bombCount={state.bombBonusCount} 
+        onBuyBonus={(b, c) => { 
+          safePlay('purchase', "G5", "8n");
+          dispatch({ type: 'BUY_BONUS', bonus: b, cost: c }); 
+        }} 
+        onNextLevel={() => { safePlay('uiClick', "G5", "32n"); dispatch({ type: 'NEXT_LEVEL' }); }} 
+        onClose={() => { safePlay('uiClick', "G5", "32n"); setIsShopOpen(false); }} 
+        onWatchAd={(b) => platform.showRewardedVideo({ onRewarded: () => dispatch({ type: 'ADD_BONUS', bonus: b }) })} 
+      />
+      <LeaderboardDialog leaderboardName="mainLeaderboard" isOpen={isLeaderboardOpen} onClose={() => { safePlay('uiClick', "G5", "32n"); setIsLeaderboardOpen(false); }} currentScore={state.score} isAuthorized={isAuthorized} />
+      <AchievementsDialog isOpen={isAchievementsOpen} onClose={() => { safePlay('uiClick', "G5", "32n"); setIsAchievementsOpen(false); }} playerAchievements={playerAchievements} />
+      <HowToPlayDialog isOpen={isHowToPlayOpen} onClose={() => { safePlay('uiClick', "G5", "32n"); setIsHowToPlayOpen(false); }} />
+      <LoginDialog isOpen={isLoginDialogOpen} onGuestLogin={() => setLoginDialogOpen(false)} onConfirmLogin={async () => { setIsLoginProcessing(true); if (!await platform.isAuthorized()) await platform.openAuthDialog(); const p = await platform.getPlayer(); if (p) { setIsAuthorized(true); setPlayerInfo({ name: p.getName(), avatar: p.getAvatar() }); } setIsLoginProcessing(false); setLoginDialogOpen(false); }} onOpenChange={setLoginDialogOpen} isProcessing={isLoginProcessing} isPlatformReady={true} />
+      <AchievementUnlockedDialog achievement={unlockedQueue?.[0] || null} onClose={() => unlockedQueue?.[0] && acknowledgeUnlock(unlockedQueue[0].id)} onEmitParticles={() => {
+        createExplosion(GAME_WIDTH / 2, GAME_HEIGHT / 2, '#FFD700', true);
+        safePlay('achievementChord', "C4,E4,G4,C5", "2n");
+      }} isClosing={false} />
+    </div>
+  );
+};
+
+export default Game;
+===== src/components/game/GameBoard.tsx =====
+"use client";
+import React, { useRef, useEffect, useCallback } from 'react';
+import { BUBBLE_DIAMETER, BUBBLE_RADIUS, GAME_WIDTH, GAME_HEIGHT, GRID_COLS, GRID_ROWS } from '@/lib/constants';
+import type { GameState, PoppedBubble, Trajectory, Particle, BubbleColor } from '@/lib/game-types';
+import { cn, getBubbleCanvasStyle, dropStyle } from "@/lib/utils";
+import { getBubbleCenterPosition } from '@/lib/game-logic';
+import GridBackground from './GridBackground';
+
+const drawBubble = (ctx: CanvasRenderingContext2D, x: number, y: number, color: string, theme: 'light' | 'dark', d: number = BUBBLE_DIAMETER) => {
+  if (!color) return;
+  getBubbleCanvasStyle(ctx, color, x, y, d, theme);
+};
+
+type Props = {
+  state: GameState;
+  poppingBubbles: PoppedBubble[];
+  trajectoryPath: Trajectory;
+  particlesRef: React.MutableRefObject<Particle[]>;
+  shooterData: { position: { x: number; y: number }; color: BubbleColor; diameter: number };
+  theme: 'light' | 'dark';
+  clearEffectPhase: 'idle' | 'prepare' | 'burst' | 'complete';
+  screenFlash: string | null;
+};
+
+export default function GameBoard({ state, poppingBubbles, trajectoryPath, particlesRef, shooterData, theme, clearEffectPhase, screenFlash }: Props) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stateRef = useRef(state);
+  const trajRef = useRef(trajectoryPath);
+  const themeRef = useRef(theme);
+  const shootRef = useRef(shooterData);
+  const particlesLocalRef = useRef(particlesRef.current);
+  const lastTimeRef = useRef(0);
+  const animationIdRef = useRef<number>();
+
+  useEffect(() => { 
+    stateRef.current = state; 
+  }, [state]);
+  
+  useEffect(() => { 
+    trajRef.current = trajectoryPath; 
+  }, [trajectoryPath]);
+  
+  useEffect(() => { 
+    themeRef.current = theme; 
+  }, [theme]);
+  
+  useEffect(() => { 
+    shootRef.current = shooterData; 
+  }, [shooterData]);
+  
+  useEffect(() => { 
+    particlesLocalRef.current = particlesRef.current; 
+  }, [particlesRef.current]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = GAME_WIDTH;
+    canvas.height = GAME_HEIGHT;
+  }, []);
+
+  // Очистка частиц при размонтировании
+  useEffect(() => {
+    return () => {
+      if (animationIdRef.current) {
+        cancelAnimationFrame(animationIdRef.current);
+      }
+      particlesRef.current = [];
+    };
+  }, [particlesRef]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let dashOff = 0, ringP = 0;
+
+    const render = (timestamp: number) => {
+      const s = stateRef.current;
+      const traj = trajRef.current;
+      const curTheme = themeRef.current;
+      const shoot = shootRef.current;
+      const particles = particlesLocalRef.current;
+      
+      // Delta time для плавной анимации
+      if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+      const deltaTime = Math.min((timestamp - lastTimeRef.current) / 16.67, 2);
+      lastTimeRef.current = timestamp;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      dashOff -= 0.7 * deltaTime;
+      ringP += 0.08 * deltaTime;
+
+      // Эффект паники
+      if (s.panicModeActive) {
+        ctx.save();
+        ctx.globalAlpha = 0.15 + Math.sin(Date.now() / 150) * 0.1;
+        ctx.fillStyle = '#FF0000';
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.restore();
+      }
+
+      // Отрисовка сетки пузырей
+      for (let r = 0; r < GRID_ROWS; r++) {
+        const row = s.grid[r];
+        if (!row) continue;
+        const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+        for (let c = 0; c < cols; c++) {
+          const color = row[c];
+          if (color && typeof color === 'string') {
+            const { x, y } = getBubbleCenterPosition(r, c);
+            drawBubble(ctx, x - BUBBLE_RADIUS, y - BUBBLE_RADIUS, color, curTheme);
+          }
+        }
+      }
+
+      // Отрисовка траектории
+      if (s.status === 'playing' && !s.flyingBubble && !s.panicModeActive && traj.points.length > 1 && traj.color && typeof traj.color === 'string') {
+        const tc = traj.color as string;
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([12, 18]);
+        ctx.lineDashOffset = dashOff;
+        ctx.strokeStyle = tc;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.5;
+        ctx.moveTo(traj.points[0].x, traj.points[0].y);
+        for (let i = 1; i < traj.points.length; i++) ctx.lineTo(traj.points[i].x, traj.points[i].y);
+        ctx.stroke();
+
+        if (traj.endBubble?.color) {
+          const e = traj.endBubble;
+          ctx.setLineDash([]);
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.arc(e.x + BUBBLE_RADIUS, e.y + BUBBLE_RADIUS, BUBBLE_RADIUS * (1 + Math.sin(ringP * 4) * 0.15), 0, Math.PI * 2);
+          ctx.strokeStyle = e.color as string;
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // Физика и отрисовка частиц (оптимизировано)
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        
+        // Физика с учётом времени
+        p.vx *= 0.94;
+        p.vy *= 0.94;
+        p.vy += 0.35 * deltaTime;
+        
+        p.x += p.vx * deltaTime;
+        p.y += p.vy * deltaTime;
+        p.lifespan -= 2.0 * deltaTime;
+
+        if (p.lifespan <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx.save();
+        const opacity = Math.max(0, p.lifespan / 50);
+        const radius = Math.max(0.5, p.size * (p.lifespan / 45));
+        
+        ctx.globalAlpha = opacity;
+        
+        if (p.type === 'spark') {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p.x - p.vx * 1.5, p.y - p.vy * 1.5);
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = Math.max(1, radius);
+          ctx.stroke();
+        } else if (p.type === 'glow') {
+          const grad = ctx.createRadialGradient(p.x - 2, p.y - 2, 0, p.x, p.y, radius);
+          grad.addColorStop(0, p.color);
+          grad.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // Отрисовка летящего пузыря
+      if (s.flyingBubble?.color && typeof s.flyingBubble.color === 'string') {
+        const fb = s.flyingBubble;
+        ctx.save();
+        ctx.translate(fb.x, fb.y);
+        ctx.rotate((fb.angle * Math.PI) / 180);
+        ctx.scale(0.85, 1.15);
+        drawBubble(ctx, -BUBBLE_RADIUS, -BUBBLE_RADIUS, fb.color as string, curTheme, fb.diameter);
+        ctx.restore();
+      }
+
+      // Отрисовка снаряда в пушке
+      if (s.status === 'playing' && !s.flyingBubble && shoot.color && typeof shoot.color === 'string') {
+        drawBubble(ctx, shoot.position.x, shoot.position.y, shoot.color as string, curTheme, shoot.diameter);
+      }
+
+      animationIdRef.current = requestAnimationFrame(render);
+    };
+
+    animationIdRef.current = requestAnimationFrame(render);
+    return () => {
+      if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="relative w-full h-full bg-background overflow-hidden">
+      <GridBackground />
+      <canvas ref={canvasRef} width={GAME_WIDTH} height={GAME_HEIGHT} className="absolute top-0 left-0 z-10 pointer-events-none" />
+      
+      <div className="absolute left-0 right-0 border-t-4 border-solid border-destructive/40 z-20 pointer-events-none" style={{ top: `${GAME_HEIGHT - BUBBLE_DIAMETER * 2.1}px` }} />
+      
+      {poppingBubbles.map(({ key, x, y, color, type }) => (
+        <div key={key} className={cn("absolute z-20", type === 'fall' ? "animate-fall" : "animate-splat")} style={{ width: `${BUBBLE_DIAMETER}px`, height: `${BUBBLE_DIAMETER}px`, left: `${x}px`, top: `${y}px` }}>
+          {color && typeof color === 'string' && <div style={dropStyle(color, theme)} />}
+        </div>
+      ))}
+      
+      {state.clearedColor && (
+        <div className="absolute inset-0 z-[200] flex items-center justify-center pointer-events-none">
+          <div className={cn(
+            "w-48 h-48",
+            clearEffectPhase === 'prepare' ? "animate-shake-bubble" : "animate-swell-and-burst"
+          )}>
+            <div className="w-full h-full rounded-none" style={dropStyle(state.clearedColor.color as string, theme)} />
+          </div>
+        </div>
+      )}
+      
+      {screenFlash && (
+        <div className="absolute inset-0 z-[150] pointer-events-none animate-color-flash" style={{ backgroundColor: screenFlash, opacity: 0.2 }} />
+      )}
+    </div>
+  );
+}
+===== src/components/game/GameHeader.tsx =====
+"use client";
+import React from 'react';
+import { Star, Target, Settings, Trophy, Store, Volume2, VolumeX, Medal, RefreshCcw, LogIn, LogOut, HelpCircle, Languages } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/simple-avatar";
+import { cn } from '@/lib/utils';
+import { useI18n } from '@/hooks/useI18n';
+
+type Props = {
+score: number; level: number;
+onShowLeaderboard: () => void; onShowShop: () => void; onShowAchievements: () => void; onShowHowToPlay: () => void;
+className?: string; isMuted: boolean; onMuteToggle: () => void;
+onRestartLevel: () => void; isAuthorized: boolean; onLogin: () => void;
+playerInfo: { name: string; avatar: string } | null; onLogout: () => void;
+};
+
+const StatCard = ({ icon, value, title }: { icon: React.ReactElement; value: React.ReactNode; title: string }) => (
+<div className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-white/60 backdrop-blur shadow-sm border border-white/50"> 
+  <div className="text-primary animate-pulse">{icon}</div> 
+  <div className="flex flex-col"> 
+    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest leading-none">{title}</span> 
+    <p className="text-lg font-black leading-none mt-0.5">{value}</p> 
+  </div> 
+</div> 
+);
+
+const GameHeader = ({ score, level, onShowLeaderboard, onShowShop, onShowAchievements, onShowHowToPlay, className, isMuted, onMuteToggle, onRestartLevel, isAuthorized, onLogin, playerInfo, onLogout }: Props) => {
+const { t, setLanguage, language } = useI18n();
+const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+
+return (
+<header className={cn("relative w-full p-3 z-40 bg-white/80 backdrop-blur-md border-b-2 shrink-0", className)}> 
+  <div className="flex items-center justify-between"> 
+    <div className="flex items-center gap-2"> 
+      <StatCard icon={<Target className="w-5 h-5" />} value={level} title={t('header.level')} /> 
+      <StatCard icon={<Star className="w-5 h-5 text-yellow-500 fill-current" />} value={score} title={t('header.score')} /> 
+    </div> 
+    <div className="flex items-center gap-2"> 
+      <Button variant="secondary" size="icon" className="h-10 w-10 rounded-xl shadow-sm hover:scale-105" onClick={onShowShop}> 
+        <Store className="h-6 w-6 text-primary" /> 
+      </Button> 
+      <div className="relative">
+        <Button variant="secondary" size="icon" className="h-10 w-10 rounded-xl shadow-sm hover:rotate-45 transition-transform" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+          <Settings className="h-6 w-6" />
+        </Button>
+        {isMenuOpen && (
+          <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-popover border shadow-lg p-2 z-50">
+            {isAuthorized && playerInfo && (
+              <>
+                <div className="flex items-center gap-3 p-2 rounded-2xl bg-primary/5 mb-2">
+                  <Avatar className="h-10 w-10 border-2 border-primary">
+                    <AvatarImage src={playerInfo.avatar} />
+                    <AvatarFallback className="font-black">{playerInfo.name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block">{t('rightPanel.loggedInAs')}</span>
+                    <span className="font-black truncate block text-base">{playerInfo.name}</span>
+                  </div>
+                </div>
+                <hr className="my-1" />
+              </>
+            )}
+            <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onShowHowToPlay}>
+              <HelpCircle className='inline mr-3 h-5 w-5' />{t('header.howToPlay')}
+            </div>
+            <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onShowAchievements}>
+              <Medal className='inline mr-3 h-5 w-5' />{t('header.achievements')}
+            </div>
+            <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onShowLeaderboard}>
+              <Trophy className='inline mr-3 h-5 w-5' />{t('header.leaderboard')}
+            </div>
+            <hr className="my-1" />
+            <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onRestartLevel}>
+              <RefreshCcw className="inline mr-3 h-5 w-5" />{t('header.restartLevel')}
+            </div>
+            <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onMuteToggle}>
+              {isMuted ? <VolumeX className="inline mr-3 h-5 w-5" /> : <Volume2 className="inline mr-3 h-5 w-5" />}
+              {isMuted ? t('header.unmute') : t('header.mute')}
+            </div>
+            <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}>
+              <Languages className="inline mr-3 h-5 w-5" />{language === 'ru' ? 'English' : 'Русский'}
+            </div>
+            <hr className="my-1" />
+            {!isAuthorized ? (
+              <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md text-primary" onClick={onLogin}>
+                <LogIn className="inline mr-3 h-5 w-5" />{t('header.login')}
+              </div>
+            ) : (
+              <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md text-destructive" onClick={onLogout}>
+                <LogOut className="inline mr-3 h-5 w-5" />{t('header.logout')}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div> 
+  </div> 
+</header> 
+); };
+export default GameHeader;
+
+===== src/components/game/GameOverDialog.tsx =====
+"use client";
+import { Frown, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { SimpleDialog, SimpleDialogHeader, SimpleDialogTitle, SimpleDialogDescription, SimpleDialogFooter } from "@/components/ui/simple-dialog";
+import type { GameStatus } from "@/lib/game-types";
+import { useEffect, useState } from "react";
+import { useI18n } from "@/hooks/useI18n";
+
+type Props = { status: GameStatus; score: number; onRestart: () => void; onContinueWithAd: () => void };
+
+export default function GameOverDialog({ status, score, onRestart, onContinueWithAd }: Props) {
+const { t } = useI18n();
+const [isOpen, setIsOpen] = useState(false);
+
+useEffect(() => { setIsOpen(status === "lost"); }, [status]);
+
+return (
+<SimpleDialog open={isOpen} onOpenChange={(open) => !open && onRestart()}>
+  <div className="text-center">
+    <div className="flex justify-center mb-4">
+      <Frown className="w-24 h-24 text-destructive" />
+    </div>
+    <SimpleDialogTitle className="text-3xl">{t('gameOver.title')}</SimpleDialogTitle>
+    <SimpleDialogDescription className="text-lg pt-2">
+      {t('gameOver.description')}
+    </SimpleDialogDescription>
+    <div className="text-2xl font-bold mt-4">
+      {t('gameOver.score')} {score}
+    </div>
+    <SimpleDialogFooter className="flex-col gap-2 mt-6">
+      <Button variant="secondary" size="lg" className="w-full" onClick={onContinueWithAd}>
+        <Video className="mr-2 h-5 w-5" />
+        {t('gameOver.continueWithAd')}
+      </Button>
+      <Button variant="default" size="lg" className="w-full" onClick={onRestart}>
+        {t('gameOver.restart')}
+      </Button>
+    </SimpleDialogFooter>
+  </div>
+</SimpleDialog>
+);
+}
+
+===== src/components/game/GridBackground.tsx =====
+"use client";
+import React, { useRef, useEffect } from 'react';
+import { GAME_WIDTH, GAME_HEIGHT } from '@/lib/constants';
+
+interface SoapBubble {
+  x: number;
+  y: number;
+  radius: number;
+  baseRadius: number;
+  vx: number;
+  vy: number;
+  phase: number;
+  speed: number;
+  shimmerPhase: number;
+  wobble: number;
+  hue: number;
+}
+
+const GridBackground = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const bubblesRef = useRef<SoapBubble[]>([]);
+  const dimsRef = useRef({ w: GAME_WIDTH, h: GAME_HEIGHT });
+
+  useEffect(() => {
+    if (bubblesRef.current.length > 0) return;
+    const b: SoapBubble[] = [];
+    for (let i = 0; i < 18; i++) {
+      const r = 35 + Math.random() * 65;
+      b.push({
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT,
+        radius: r,
+        baseRadius: r,
+        vx: (Math.random() - 0.5) * 0.45,
+        vy: -0.25 - Math.random() * 0.45,
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.4 + Math.random() * 0.8,
+        shimmerPhase: Math.random() * Math.PI * 2,
+        wobble: Math.random() * Math.PI * 2,
+        hue: Math.random() * 360
+      });
+    }
+    bubblesRef.current = b;
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resize = () => {
+      const p = canvas.parentElement;
+      if (!p) return;
+      const w = p.clientWidth, h = p.clientHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        dimsRef.current = { w, h };
+      }
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas.parentElement!);
+
+    let id: number;
+    const anim = (t: number) => {
+      const { w, h } = dimsRef.current;
+      const sx = w / GAME_WIDTH, sy = h / GAME_HEIGHT, sc = Math.min(sx, sy);
+      const ox = (w - GAME_WIDTH * sc) / 2, oy = (h - GAME_HEIGHT * sc) / 2;
+
+      const bg = ctx.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, '#e3f2fd');
+      bg.addColorStop(0.5, '#f5faff');
+      bg.addColorStop(1, '#e1f5fe');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.save();
+      ctx.translate(ox, oy);
+      ctx.scale(sc, sc);
+
+      bubblesRef.current.forEach(b => {
+        b.x += b.vx + Math.sin(t * 0.001 * b.speed + b.phase) * 0.5;
+        b.y += b.vy;
+        b.shimmerPhase += 0.015;
+        b.wobble += 0.025;
+        const pulse = 1 + Math.sin(t * 0.0015 + b.phase) * 0.04;
+        const currentRadius = b.baseRadius * pulse;
+
+        if (b.x - currentRadius > GAME_WIDTH + 150) b.x = -currentRadius - 150;
+        if (b.x + currentRadius < -150) b.x = GAME_WIDTH + currentRadius + 150;
+        if (b.y + currentRadius < -150) b.y = GAME_HEIGHT + currentRadius + 150;
+        if (b.y - currentRadius > GAME_HEIGHT + 150) b.y = -currentRadius - 150;
+
+        const iridescenceHue = (t * 0.04 + b.hue) % 360;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, currentRadius, 0, Math.PI * 2);
+        const g = ctx.createRadialGradient(
+          b.x - currentRadius * 0.3, b.y - currentRadius * 0.4, currentRadius * 0.05,
+          b.x, b.y, currentRadius
+        );
+        g.addColorStop(0, `hsla(${iridescenceHue}, 80%, 95%, 0.15)`);
+        g.addColorStop(0.7, `hsla(${(iridescenceHue + 120) % 360}, 60%, 80%, 0.05)`);
+        g.addColorStop(0.92, `hsla(${(iridescenceHue + 240) % 360}, 75%, 85%, 0.25)`);
+        g.addColorStop(1, 'rgba(255, 255, 255, 0.45)');
+        ctx.fillStyle = g;
+        ctx.fill();
+
+        ctx.strokeStyle = `hsla(${iridescenceHue}, 100%, 90%, ${0.35 + Math.sin(b.shimmerPhase) * 0.15})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(
+          b.x - currentRadius * 0.4,
+          b.y - currentRadius * 0.4,
+          currentRadius * 0.35,
+          currentRadius * 0.18,
+          -Math.PI / 4,
+          0,
+          Math.PI * 2
+        );
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(b.x + currentRadius * 0.45, b.y + currentRadius * 0.45, currentRadius * 0.12, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fill();
+        ctx.restore();
+      });
+      ctx.restore();
+
+      id = requestAnimationFrame(anim);
+    };
+
+    id = requestAnimationFrame(anim);
+    return () => {
+      cancelAnimationFrame(id);
+      ro.disconnect();
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute top-0 left-0 z-0 pointer-events-none" />;
+};
+
+export default GridBackground;
+
+===== src/components/game/HowToPlayDialog.tsx =====
+"use client";
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { useI18n } from '@/hooks/useI18n';
+import { MousePointer2, Target, Crosshair, Palette, Zap, AlertTriangle, ArrowDownToLine } from 'lucide-react';
+import { SimpleDialog, SimpleDialogHeader, SimpleDialogTitle, SimpleDialogFooter } from "@/components/ui/simple-dialog";
+
+const HowToPlayDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+const { t } = useI18n();
+return (
+<SimpleDialog open={isOpen} onOpenChange={onClose} className="w-[calc(100%-2rem)] max-w-md rounded-[2.5rem] border-4 p-4 sm:p-6">
+  <div>
+    <SimpleDialogHeader className="text-center">
+      <SimpleDialogTitle className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-primary">
+        {t('howToPlay.title')}
+      </SimpleDialogTitle>
+    </SimpleDialogHeader>
+    <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+      <div className="flex items-start gap-4 p-4 rounded-3xl bg-primary/5 hover:bg-primary/10 transition-colors group">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0 group-hover:rotate-6 transition-transform">
+          <MousePointer2 className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
+        </div>
+        <div>
+          <h4 className="font-black text-base sm:text-lg">{t('howToPlay.controlsTitle')}</h4>
+          <p className="text-xs sm:text-sm font-semibold text-muted-foreground leading-snug">{t('howToPlay.controlsDescription')}</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-4 p-4 rounded-3xl bg-accent/5 hover:bg-accent/10 transition-colors group">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-accent/20 flex items-center justify-center shrink-0 group-hover:-rotate-6 transition-transform">
+          <Target className="h-6 w-6 sm:h-7 sm:w-7 text-accent" />
+        </div>
+        <div>
+          <h4 className="font-black text-base sm:text-lg">{t('howToPlay.matchTitle')}</h4>
+          <p className="text-xs sm:text-sm font-semibold text-muted-foreground leading-snug">{t('howToPlay.matchDescription')}</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-4 p-4 rounded-3xl bg-orange-400/5 hover:bg-orange-400/10 transition-colors group">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-orange-400/20 flex items-center justify-center shrink-0 group-hover:translate-y-1 transition-transform">
+          <ArrowDownToLine className="h-6 w-6 sm:h-7 sm:w-7 text-orange-600" />
+        </div>
+        <div>
+          <h4 className="font-black text-base sm:text-lg">{t('howToPlay.dropTitle')}</h4>
+          <p className="text-xs sm:text-sm font-semibold text-muted-foreground leading-snug">{t('howToPlay.dropDescription')}</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-4 p-4 rounded-3xl bg-red-400/5 hover:bg-red-400/10 transition-colors group">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-red-400/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+          <AlertTriangle className="h-6 w-6 sm:h-7 sm:w-7 text-red-600 animate-pulse" />
+        </div>
+        <div>
+          <h4 className="font-black text-base sm:text-lg">{t('howToPlay.panicTitle')}</h4>
+          <p className="text-xs sm:text-sm font-semibold text-muted-foreground leading-snug">{t('howToPlay.panicDescription')}</p>
+        </div>
+      </div>
+      <div className="flex items-start gap-4 p-4 rounded-3xl bg-yellow-400/5 hover:bg-yellow-400/10 transition-colors group">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-yellow-400/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+          <Zap className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-600" />
+        </div>
+        <div>
+          <h4 className="font-black text-base sm:text-lg">{t('howToPlay.bonusTitle')}</h4>
+          <p className="text-xs sm:text-sm font-semibold text-muted-foreground leading-snug">{t('howToPlay.bonusDescription')}</p>
+        </div>
+      </div>
+    </div>
+    <SimpleDialogFooter>
+      <Button size="lg" className="w-full h-14 sm:h-16 text-xl sm:text-2xl font-black rounded-2xl shadow-xl hover:scale-105 transition-transform" onClick={onClose}>
+        {t('howToPlay.close')}
+      </Button>
+    </SimpleDialogFooter>
+  </div>
+</SimpleDialog>
+);
+};
+export default HowToPlayDialog;
+
+===== src/components/game/LeaderboardDialog.tsx =====
+"use client";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button } from "@/components/ui/button";
+import { Loader2, Trophy } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/simple-avatar";
+import { cn } from '@/lib/utils';
+import { useI18n } from '@/hooks/useI18n';
+import { platform } from '@/lib/platform';
+import { SimpleDialog, SimpleDialogHeader, SimpleDialogTitle, SimpleDialogFooter } from "@/components/ui/simple-dialog";
+import type { PlatformLeaderboardEntry } from '@/lib/platform/types';
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  isAuthorized: boolean;
+  currentScore: number;
+  leaderboardName: string;
+}
+
+const LeaderboardDialog: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  isAuthorized,
+  currentScore,
+  leaderboardName
+}) => {
+  const { t } = useI18n();
+  const [loading, setLoading] = useState(false);
+  const [entries, setEntries] = useState<PlatformLeaderboardEntry[]>([]);
+  const [userEntry, setUserEntry] = useState<PlatformLeaderboardEntry | null>(null);
+
+  const fetch = useCallback(async () => {
+    if (!isAuthorized) { setEntries([]); return; }
+    setLoading(true);
+    try {
+      const r = await platform.getLeaderboardEntries(leaderboardName, currentScore);
+      setEntries(r.entries);
+      setUserEntry(r.userEntry);
+    } catch {} finally { setLoading(false); }
+  }, [currentScore, isAuthorized, leaderboardName]);
+
+  useEffect(() => { if (isOpen) fetch(); }, [isOpen, fetch]);
+
+  return (
+    <SimpleDialog open={isOpen} onOpenChange={onClose} className="sm:max-w-[500px]">
+      <div>
+        <SimpleDialogHeader>
+          <SimpleDialogTitle className="text-center text-2xl flex items-center justify-center gap-2">
+            <Trophy className="h-6 w-6 text-yellow-500" />
+            {t('leaderboard.title')}
+          </SimpleDialogTitle>
+        </SimpleDialogHeader>
+        {!isAuthorized ? (
+          <p className="text-center py-8 text-muted-foreground">{t('leaderboard.authMessage')}</p>
+        ) : loading ? (
+          <div className="flex justify-center my-8">
+            <Loader2 className="h-12 w-12 animate-spin" />
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+            {entries.map(e => (
+              <div key={e.uniqueID} className={cn("flex items-center gap-3 p-2 rounded-xl", userEntry?.uniqueID === e.uniqueID && "bg-primary/10")}>
+                <span className="w-8 text-center font-black">{e.rank}</span>
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={e.avatar} />
+                  <AvatarFallback>{e.name?.[0]}</AvatarFallback>
+                </Avatar>
+                <span className="flex-1 font-bold truncate">{e.name}</span>
+                <span className="font-bold text-lg px-3 py-1 rounded-lg bg-muted">{e.score}</span>
+              </div>
+            ))}
+            {userEntry && !entries.find(e => e.uniqueID === userEntry.uniqueID) && (
+              <div className="border-t-2 pt-2 mt-2">
+                <p className="text-xs text-center text-muted-foreground mb-1">{t('leaderboard.yourPosition')}</p>
+                <div className="flex items-center gap-3 p-2 rounded-xl bg-primary/10">
+                  <span className="w-8 text-center font-black">{userEntry.rank}</span>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={userEntry.avatar} />
+                    <AvatarFallback>{userEntry.name?.[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className="flex-1 font-bold truncate">{userEntry.name}</span>
+                  <span className="font-bold text-lg px-3 py-1 rounded-lg bg-muted">{userEntry.score}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        <SimpleDialogFooter>
+          <Button variant="outline" size="lg" className="w-full" onClick={onClose}>
+            {t('leaderboard.close')}
+          </Button>
+        </SimpleDialogFooter>
+      </div>
+    </SimpleDialog>
+  );
+};
+export default LeaderboardDialog;
+
+===== src/components/game/LeftPanel.tsx =====
+"use client";
+import React from 'react';
+import { Star, Target, ArrowRightLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn, dropStyle } from '@/lib/utils';
+import type { BubbleColor } from '@/lib/game-types';
+import { useI18n } from '@/hooks/useI18n';
+
+const StatCard = ({ icon, value, title }: { icon: React.ReactNode; value: React.ReactNode; title: string }) => (
+<div className="flex items-center gap-4 p-4 rounded-3xl bg-white/60 backdrop-blur-md border-2 border-white/50 shadow-lg"> 
+  <div className="text-primary">{icon}</div> 
+  <div className='flex flex-col'> 
+    <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest leading-none">{title}</span> 
+    <span className="text-2xl font-black leading-tight mt-1">{value}</span> 
+  </div> 
+</div> 
+);
+
+type Props = { score: number; level: number; nextBubble: BubbleColor; onSwap: () => void; shotsUntilDrop: number; shotsBeforeDrop: number; gameStatus: string; theme: 'light' | 'dark' };
+
+const LeftPanel: React.FC<Props> = ({ score, level, nextBubble, onSwap, shotsUntilDrop, shotsBeforeDrop, gameStatus, theme }) => {
+const { t } = useI18n();
+return (
+<aside className="w-60 bg-sidebar/80 backdrop-blur-lg p-6 hidden lg:flex flex-col justify-between border-r-2 shadow-2xl relative z-10"> 
+  <div> 
+    <div className="space-y-6 pt-4"> 
+      <StatCard icon={<Target className="w-8 h-8" />} value={level} title={t('leftPanel.level')} /> 
+      <StatCard icon={<Star className="w-8 h-8 text-yellow-400 fill-current" />} value={score} title={t('leftPanel.score')} /> 
+    </div> 
+    <div className="mt-10"> 
+      <h3 className="text-[10px] font-black uppercase text-center text-muted-foreground mb-4 tracking-widest opacity-70">{t('leftPanel.shotsUntilDrop')}</h3> 
+      <div className="flex justify-center gap-2"> 
+        {[...Array(shotsBeforeDrop)].map((_, i) => ( 
+          <div key={i} className={cn("w-4 h-4 rounded-full border-2 transition-all duration-300", i < shotsUntilDrop ? "bg-accent border-accent scale-110 shadow-sm" : "bg-transparent border-border")}></div> 
+        ))} 
+      </div> 
+    </div> 
+  </div> 
+  <div className="flex flex-col items-center gap-6"> 
+    <h3 className="text-[10px] font-black uppercase text-muted-foreground tracking-widest opacity-70">{t('leftPanel.next')}</h3> 
+    <div className="flex items-center gap-4"> 
+      <div className="w-20 h-20 border-4 border-white bg-white/50 backdrop-blur p-1 rounded-full shadow-[inset_0_2px_10px_rgba(0,0,0,0.1),0_5px_15px_rgba(0,0,0,0.05)]"> 
+        {nextBubble && <div style={dropStyle(nextBubble, theme)} />} 
+      </div> 
+      <Button variant="secondary" size="icon" className="h-14 w-14 rounded-full shadow-lg hover:scale-110 active:scale-95 transition-all bg-white hover:bg-white border-2 border-primary/20" onClick={onSwap} disabled={gameStatus !== 'playing'}> 
+        <ArrowRightLeft className="w-6 h-6 text-primary" /> 
+      </Button> 
+    </div> 
+  </div> 
+</aside> 
+); };
+export default LeftPanel;
+
+===== src/components/game/LevelCompleteStats.tsx =====
+"use client";
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { Clock, Target, TrendingUp, Zap, Aperture, Award } from 'lucide-react';
+import { useI18n } from '@/hooks/useI18n';
+import { SimpleDialog, SimpleDialogHeader, SimpleDialogTitle, SimpleDialogDescription, SimpleDialogFooter } from "@/components/ui/simple-dialog";
+
+type Props = { isOpen: boolean; onContinue: () => void; shots: number; accuracy: number; bestCombo: number; bubblesPopped: number; timeSpent: number; };
+
+const StatRow = ({ icon, label, value }: { icon: React.ReactNode; label: string; value: string | number }) => (
+  <div className="flex justify-between items-center p-3 bg-muted/50 rounded-2xl border">
+    <span className="flex items-center gap-3 text-muted-foreground font-semibold">
+      {icon}{label}
+    </span>
+    <span className="font-black text-xl">{value}</span>
+  </div>
+);
+
+const LevelCompleteStats: React.FC<Props> = ({ isOpen, onContinue, shots, accuracy, bestCombo, bubblesPopped, timeSpent }) => {
+  const { t } = useI18n();
+  const formatTime = (s: number) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+
+  return (
+    <SimpleDialog open={isOpen} onOpenChange={(o) => !o && onContinue()} className="sm:max-w-md">
+      <div>
+        <SimpleDialogHeader>
+          <div className="mx-auto bg-primary/10 p-3 rounded-full mb-2">
+            <Award className="w-12 h-12 text-primary" />
+          </div>
+          <SimpleDialogTitle className="text-center text-2xl font-black uppercase">
+            {t('levelComplete.title')}
+          </SimpleDialogTitle>
+          <SimpleDialogDescription className="text-center">
+            {t('levelComplete.description')}
+          </SimpleDialogDescription>
+        </SimpleDialogHeader>
+        <div className="space-y-3 py-4 max-h-[60vh] overflow-y-auto px-1">
+          <StatRow icon={<Clock className="h-5 w-5 text-primary" />} label={t('levelComplete.time')} value={formatTime(timeSpent)} />
+          <StatRow icon={<Target className="h-5 w-5 text-primary" />} label={t('levelComplete.shots')} value={shots} />
+          <StatRow icon={<TrendingUp className="h-5 w-5 text-primary" />} label={t('levelComplete.accuracy')} value={`${accuracy}%`} />
+          <StatRow icon={<Zap className="h-5 w-5 text-primary" />} label={t('levelComplete.bestCombo')} value={`x${bestCombo}`} />
+          <StatRow icon={<Aperture className="h-5 w-5 text-primary" />} label={t('levelComplete.bubblesPopped')} value={bubblesPopped} />
+        </div>
+        <SimpleDialogFooter className="pt-2">
+          <Button size="lg" className="w-full h-14 text-xl font-bold rounded-2xl shadow-xl active:scale-95 transition-transform" onClick={onContinue}>
+            {t('levelComplete.continue')}
+          </Button>
+        </SimpleDialogFooter>
+      </div>
+    </SimpleDialog>
+  );
+};
+
+export default LevelCompleteStats;
+
+===== src/components/game/LoginDialog.tsx =====
+'use client';
+import { Button } from "@/components/ui/button";
+import { Cloud, LogIn, Trophy, Loader2 } from "lucide-react";
+import { useI18n } from "@/hooks/useI18n";
+import { SimpleDialog, SimpleDialogHeader, SimpleDialogTitle, SimpleDialogDescription, SimpleDialogFooter } from "@/components/ui/simple-dialog";
+
+type Props = { isOpen: boolean; onGuestLogin: () => void; onConfirmLogin: () => void; onOpenChange: (open: boolean) => void; isProcessing?: boolean; isAlreadyAuthorized?: boolean; isPlatformReady?: boolean; };
+
+export default function LoginDialog({ isOpen, onGuestLogin, onConfirmLogin, onOpenChange, isProcessing = false, isPlatformReady = true }: Props) {
+const { t } = useI18n();
+return (
+<SimpleDialog open={isOpen} onOpenChange={onOpenChange} className="sm:max-w-[450px]">
+  <div>
+    <SimpleDialogHeader className="text-center">
+      <SimpleDialogTitle className="flex items-center justify-center gap-2 text-xl">
+        <LogIn className="w-6 h-6" />
+        {t('loginDialog.title')}
+      </SimpleDialogTitle>
+      <SimpleDialogDescription className="pt-2 text-base">
+        {t('loginDialog.description')}
+      </SimpleDialogDescription>
+    </SimpleDialogHeader>
+    <div className="py-4 space-y-4">
+      <div className="flex items-start gap-3">
+        <Cloud className="h-5 w-5 text-primary mt-1" />
+        <p className="text-muted-foreground">{t('loginDialog.benefitCloud')}</p>
+      </div>
+      <div className="flex items-start gap-3">
+        <Trophy className="h-5 w-5 text-primary mt-1" />
+        <p className="text-muted-foreground">{t('loginDialog.benefitLeaderboard')}</p>
+      </div>
+    </div>
+    <p className="text-center text-sm text-muted-foreground">{t('loginDialog.guestInfo')}</p>
+    <SimpleDialogFooter className="flex-col gap-2 pt-4">
+      <Button size="lg" onClick={onConfirmLogin} disabled={isProcessing || !isPlatformReady} className="w-full">
+        {isProcessing ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogIn className="mr-2 h-5 w-5" />}
+        {isProcessing ? t('loginDialog.processing') : t('loginDialog.loginButton')}
+      </Button>
+      <Button size="lg" variant="ghost" onClick={onGuestLogin} disabled={isProcessing}>
+        {t('loginDialog.cancelButton')}
+      </Button>
+    </SimpleDialogFooter>
+  </div>
+</SimpleDialog>
+);
+}
+
+===== src/components/game/OrientationLock.tsx =====
+'use client';
+import { useEffect, useState } from 'react';
+import { Smartphone } from 'lucide-react';
+import { useI18n } from '@/hooks/useI18n';
+
+const OrientationLock = () => {
+const { t } = useI18n();
+const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+const ua = navigator.userAgent || navigator.vendor || (window as any).opera;
+const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+setIsMobile(mobile);
+if (mobile && screen.orientation && typeof (screen.orientation as any).lock === 'function') {
+(screen.orientation as any).lock('portrait-primary').catch(() => {});
+const hv = () => { if (document.visibilityState === 'visible') (screen.orientation as any).lock('portrait-primary').catch(() => {}); };
+document.addEventListener('visibilitychange', hv);
+return () => document.removeEventListener('visibilitychange', hv);
+}
+}, []);
+
+if (!isMobile) return null;
+
+return (
+<div id="orientation-lock"> 
+  <div className="content"> 
+    <Smartphone className="icon" /> 
+    <p>{t('orientation.message')}</p> 
+  </div> 
+</div> 
+); };
+export default OrientationLock;
+
+===== src/components/game/RightPanel.tsx =====
+"use client"
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/simple-avatar";
+import { Crosshair, Store, VolumeX, Volume2, Pause, Play, Settings, Trophy, Medal, RefreshCcw, LogIn, LogOut, HelpCircle, Languages } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { BonusType, GameStatus } from '@/lib/game-types';
+import { useI18n } from '@/hooks/useI18n';
+
+export type RightPanelProps = {
+bombCount: number; activeBonus: BonusType | null; onSelectBonus: (bonus: BonusType) => void;
+gameStatus: GameStatus; isPaused: boolean; onPauseToggle: () => void; isMuted: boolean; onMuteToggle: () => void;
+onShowLeaderboard: () => void; onShowAchievements: () => void; onShowHowToPlay: () => void; onShowShop: () => void;
+onRestartLevel: () => void; isAuthorized: boolean; onLogin: () => void;
+playerInfo: { name: string; avatar: string } | null; isAdShowing: boolean; onLogout: () => void;
+}
+
+const RightPanel = ({ bombCount, activeBonus, onSelectBonus, gameStatus, isPaused, onPauseToggle, isMuted, onMuteToggle, onShowLeaderboard, onShowAchievements, onShowHowToPlay, onShowShop, onRestartLevel, isAuthorized, onLogin, playerInfo, onLogout }: RightPanelProps) => {
+const { t, language, setLanguage } = useI18n();
+const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+
+return (
+<aside className="w-60 bg-sidebar/80 backdrop-blur-lg p-6 hidden lg:flex flex-col justify-between border-l-2 shadow-2xl relative z-10"> 
+  <div> 
+    <h2 className="text-[10px] font-black uppercase text-center mb-8 tracking-widest text-muted-foreground/60">{t('rightPanel.bonuses')}</h2> 
+    <div className="space-y-6"> 
+      <Button 
+        variant={activeBonus === 'bomb' ? 'default' : 'secondary'} 
+        className={cn("w-full h-20 justify-start p-4 rounded-3xl relative transition-all duration-300 hover:scale-105 active:scale-95 shadow-sm", activeBonus === 'bomb' && "ring-4 ring-primary shadow-xl scale-105")} 
+        onClick={() => onSelectBonus('bomb')} 
+        disabled={gameStatus !== 'playing' || bombCount === 0}
+      > 
+        <div className="flex items-center gap-3"> 
+          <div className={cn("p-2 rounded-2xl", activeBonus === 'bomb' ? "bg-white/20" : "bg-primary/10")}> 
+            <Crosshair className="w-7 h-7" />
+          </div> 
+          <span className="text-lg font-black">{t('rightPanel.bomb')}</span> 
+        </div> 
+        <Badge className={cn("absolute -top-2 -right-2 h-7 min-w-7 text-base font-black rounded-2xl flex items-center justify-center p-0", activeBonus === 'bomb' ? "bg-accent" : "bg-primary shadow-md")}>
+          {bombCount}
+        </Badge> 
+      </Button> 
+    </div> 
+  </div> 
+  <div className="space-y-3"> 
+    {isAuthorized && playerInfo ? ( 
+      <div className="flex items-center gap-3 p-4 rounded-3xl bg-white/60 backdrop-blur-md border-2 border-white/50 shadow-md mb-4"> 
+        <Avatar className="h-10 w-10 border-2 border-primary"> 
+          <AvatarImage src={playerInfo.avatar} /> 
+          <AvatarFallback className="font-black text-lg">{playerInfo.name?.[0]}</AvatarFallback> 
+        </Avatar> 
+        <div className="min-w-0 flex-1"> 
+          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider leading-none">{t('rightPanel.loggedInAs')}</p> 
+          <p className="font-black text-sm truncate leading-tight mt-1">{playerInfo.name}</p> 
+        </div> 
+      </div> 
+    ) : ( 
+      <Button variant="outline" className="w-full h-14 rounded-2xl border-2 font-black text-base hover:bg-primary/5 mb-4 shadow-sm" onClick={onLogin}> 
+        <LogIn className="mr-3 h-5 w-5" />{t('header.login')} 
+      </Button> 
+    )} 
+    <Button variant="ghost" className="w-full justify-start h-12 rounded-2xl font-black text-sm hover:bg-primary/5 transition-all group" onClick={onShowShop}> 
+      <Store className="mr-3 h-5 w-5 group-hover:scale-110 transition-transform" />{t('rightPanel.shop')} 
+    </Button> 
+    <Button variant="ghost" className="w-full justify-start h-12 rounded-2xl font-black text-sm hover:bg-primary/5 transition-all group" onClick={onPauseToggle}> 
+      {isPaused ? <Play className="mr-3 h-5 w-5 group-hover:scale-110" /> : <Pause className="mr-3 h-5 w-5 group-hover:scale-110" />} 
+      {isPaused ? t('rightPanel.resume') : t('rightPanel.pause')} 
+    </Button> 
+    <div className="relative">
+      <Button variant="ghost" className="w-full justify-start h-12 rounded-2xl font-black text-sm hover:bg-primary/5 group" onClick={() => setIsSettingsOpen(!isSettingsOpen)}>
+        <Settings className="mr-3 h-5 w-5 group-hover:rotate-45 transition-transform" />{t('rightPanel.settings')}
+      </Button>
+      {isSettingsOpen && (
+        <div className="absolute bottom-full left-0 mb-2 w-64 rounded-2xl bg-popover border shadow-lg p-2 z-50">
+          <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onShowHowToPlay}>
+            <HelpCircle className='inline mr-3 h-5 w-5' />{t('header.howToPlay')}
+          </div>
+          <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onShowAchievements}>
+            <Medal className='inline mr-3 h-5 w-5' />{t('header.achievements')}
+          </div>
+          <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onShowLeaderboard}>
+            <Trophy className='inline mr-3 h-5 w-5' />{t('header.leaderboard')}
+          </div>
+          <hr className="my-1" />
+          <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onRestartLevel}>
+            <RefreshCcw className='inline mr-3 h-5 w-5' />{t('header.restartLevel')}
+          </div>
+          <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={onMuteToggle}>
+            {isMuted ? <VolumeX className="inline mr-3 h-5 w-5" /> : <Volume2 className="inline mr-3 h-5 w-5" />}
+            {isMuted ? t('header.unmute') : t('header.mute')}
+          </div>
+          <hr className="my-1" />
+          <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md" onClick={() => setLanguage(language === 'ru' ? 'en' : 'ru')}>
+            <Languages className='inline mr-3 h-5 w-5' />{language === 'ru' ? 'English' : 'Русский'}
+          </div>
+          {isAuthorized && (
+            <>
+              <hr className="my-1" />
+              <div className="px-3 py-2 cursor-pointer hover:bg-accent rounded-md text-destructive" onClick={onLogout}>
+                <LogOut className='inline mr-3 h-5 w-5' />{t('header.logout')}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  </div> 
+</aside> 
+); };
+export default RightPanel;
+===== src/components/game/ShopDialog.tsx =====
+"use client";
+import { Button } from "@/components/ui/button";
+import { Crosshair, Star, Sparkles, Video } from "lucide-react";
+import type { BonusType, GameStatus } from "@/lib/game-types";
+import { useI18n } from "@/hooks/useI18n";
+import { SimpleDialog, SimpleDialogHeader, SimpleDialogTitle, SimpleDialogDescription, SimpleDialogFooter } from "@/components/ui/simple-dialog";
+
+type Props = { isOpen: boolean; onClose: () => void; status: GameStatus; score: number; bombCount: number; onBuyBonus: (bonus: BonusType, cost: number) => void; onNextLevel: () => void; onWatchAd: (bonus: BonusType) => void; }
+
+export default function ShopDialog({ isOpen, onClose, status, score, bombCount, onBuyBonus, onNextLevel, onWatchAd }: Props) {
+const { t } = useI18n();
+const isEnd = status === 'shop';
+const bombCost = Math.max(1, Math.floor(score * 0.10));
+
+return (
+<SimpleDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} className="w-[calc(100%-2rem)] max-w-lg">
+  <div>
+    <SimpleDialogHeader>
+      {isEnd ? (
+        <>
+          <Sparkles className="w-20 h-20 mx-auto text-primary" />
+          <SimpleDialogTitle className="text-center">{t('shop.levelCompleteTitle')}</SimpleDialogTitle>
+          <SimpleDialogDescription className="text-center">{t('shop.levelCompleteDescription')}</SimpleDialogDescription>
+        </>
+      ) : (
+        <SimpleDialogTitle className="text-center">{t('shop.title')}</SimpleDialogTitle>
+      )}
+    </SimpleDialogHeader>
+    <div className="text-center mb-4">
+      <p className="text-5xl font-black text-primary">
+        <Star className="w-10 h-10 inline text-yellow-500" /> {score}
+      </p>
+    </div>
+    <div className="space-y-3">
+      <div className="flex justify-between items-center p-4 rounded-xl border bg-card">
+        <div className="flex items-center gap-4">
+          <Crosshair className="w-10 h-10 text-primary" />
+          <div>
+            <h4 className="font-bold">{t('shop.bombName')}</h4>
+            <p className="text-sm text-muted-foreground">{t('shop.bombDescription')}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="font-bold">{bombCost} <Star className="w-4 h-4 inline text-yellow-500" /></p>
+          <p className="text-xs text-muted-foreground">{bombCount}/10</p>
+          <Button size="sm" className="mt-1" disabled={score < bombCost || bombCount >= 10} onClick={() => onBuyBonus('bomb', bombCost)}>
+            {t('shop.buy')}
+          </Button>
+        </div>
+      </div>
+    </div>
+    <div className="mt-4 pt-4 border-t text-center">
+      <p className="font-bold mb-2">{t('shop.freeBonusesTitle')}</p>
+      <div className="flex gap-2 justify-center">
+        <Button variant="secondary" onClick={() => onWatchAd('bomb')}>
+          <Video className="w-4 h-4 mr-1" />{t('shop.bombName')}
+        </Button>
+      </div>
+    </div>
+    <SimpleDialogFooter>
+      {isEnd ? (
+        <Button size="lg" className="w-full" onClick={onNextLevel}>{t('shop.nextLevel')}</Button>
+      ) : (
+        <Button size="lg" variant="outline" className="w-full" onClick={onClose}>{t('shop.continue')}</Button>
+      )}
+    </SimpleDialogFooter>
+  </div>
+</SimpleDialog>
+);
+}
+===== src/components/game/WelcomeScreen.tsx =====
+"use client";
+import React, { useEffect, useState } from 'react';
+import { User, Loader2, Sparkles, Play, ShieldCheck } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useI18n } from '@/hooks/useI18n';
+import { cn } from '@/lib/utils';
+import GridBackground from './GridBackground';
+
+type Props = {
+onGuestLogin: () => void;
+onSyncLogin: () => void;
+isPlatformReady: boolean;
+isLoading: boolean;
+error: string | null;
+};
+
+export default function WelcomeScreen({ onGuestLogin, onSyncLogin, isPlatformReady, isLoading, error }: Props) {
+const { t } = useI18n();
+const [visible, setVisible] = useState(false);
+
+useEffect(() => {
+const tm = setTimeout(() => setVisible(true), 100);
+return () => clearTimeout(tm);
+}, []);
+
+if (!isPlatformReady && !error) {
+return (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
+    <Loader2 className="h-16 w-16 animate-spin text-primary" />
+  </div>
+);
+}
+
+return (
+<div className={cn(
+  "fixed inset-0 z-[100] flex items-center justify-center bg-background transition-opacity duration-1000",
+  visible ? "opacity-100" : "opacity-0"
+)}>
+  <GridBackground />
+  <div className="relative z-10 w-[calc(100%-3rem)] max-w-md mx-auto px-6 py-10 bg-white/70 backdrop-blur-3xl rounded-[3rem] border-4 border-white/50 shadow-[0_32px_64px_rgba(0,0,0,0.15)] text-center">
+    <div className="mb-10">
+      <div className="flex justify-center mb-6">
+        <div className="bg-primary/20 p-5 rounded-full animate-bounce shadow-lg">
+          <Sparkles className="w-12 h-12 text-primary fill-current" />
+        </div>
+      </div>
+      <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-none text-foreground drop-shadow-sm">
+        BubbleBlast
+        <span className="block text-primary text-3xl sm:text-4xl mt-1">Arena</span>
+      </h1>
+      <div className="mt-6 flex justify-center">
+        <div className="bg-muted/50 px-4 py-1.5 rounded-full border border-white/50">
+          <p className="text-xs sm:text-sm font-black text-muted-foreground uppercase tracking-widest opacity-80">
+            {t('welcome.subtitle')}
+          </p>
+        </div>
+      </div>
+    </div>
+    <div className="space-y-4">
+      <Button 
+        size="lg" 
+        className="w-full h-16 sm:h-20 text-xl sm:text-2xl font-black rounded-3xl shadow-[0_8px_24px_rgba(var(--primary),0.3)] hover:scale-[1.02] active:scale-95 transition-all duration-300 flex items-center justify-center gap-3 px-4 overflow-hidden" 
+        onClick={onSyncLogin} 
+        disabled={isLoading || !!error}
+      >
+        {isLoading ? <Loader2 className="h-8 w-8 animate-spin shrink-0" /> : <Play className="h-8 w-8 fill-current shrink-0" />}
+        <span className="truncate">{isLoading ? t('welcome.connecting') : t('welcome.syncButton')}</span>
+      </Button>
+      <Button 
+        variant="ghost" 
+        size="lg" 
+        className="w-full h-14 sm:h-16 text-lg sm:text-xl font-black rounded-2xl hover:bg-white/40 transition-all text-muted-foreground hover:text-foreground" 
+        onClick={onGuestLogin} 
+        disabled={isLoading}
+      >
+        <User className="mr-2 h-6 w-6" />
+        {t('welcome.guestButton')}
+      </Button>
+    </div>
+    <div className="mt-8 flex items-center justify-center gap-2 text-[10px] font-black uppercase text-muted-foreground/60 tracking-wider">
+      <ShieldCheck className="h-4 w-4" />
+      {t('welcome.guestWarning')}
+    </div>
+    {error && (
+      <div className="mt-6 p-4 rounded-2xl bg-destructive/10 border-2 border-destructive/20 text-destructive text-sm font-black uppercase">
+        {error}
+      </div>
+    )}
+  </div>
+</div>
+);
+}
+
+===== src/components/PlatformBridge.tsx =====
+'use client';
+import { useEffect, useRef } from 'react';
+import { platform } from '@/lib/platform';
+import { useI18n } from '@/hooks/useI18n';
+
+export default function PlatformBridge() {
+const initialized = useRef(false);
+const { setLanguage } = useI18n();
+
+useEffect(() => {
+const pd = (e: Event) => e.preventDefault();
+document.addEventListener('contextmenu', pd);
+document.addEventListener('selectstart', pd);
+document.addEventListener('dragstart', pd as any);
+
+const pth = (e: TouchEvent) => {
+const target = e.target as HTMLElement;
+if (target.closest('button, [role="button"], input, textarea, .scrollable-content')) {
+return;
+}
+if (e.touches.length > 1) e.preventDefault();
+};
+document.addEventListener('touchstart', pth, { passive: false });
+
+return () => {
+document.removeEventListener('contextmenu', pd);
+document.removeEventListener('selectstart', pd);
+document.removeEventListener('dragstart', pd as any);
+document.removeEventListener('touchstart', pth);
+};
+}, []);
+
+useEffect(() => {
+if (initialized.current) return;
+initialized.current = true;
+
+const init = async () => {
+try {
+await platform.init();
+const lang = platform.getLang();
+document.documentElement.lang = lang;
+setLanguage(lang);
+platform.gameReady();
+platform.gameplay.ready();
+window.dispatchEvent(new CustomEvent('platform-ready'));
+} catch (e) {
+console.warn('Platform bridge init error:', e);
+window.dispatchEvent(new CustomEvent('platform-error'));
+}
+};
+
+init();
+}, [setLanguage]);
+
+useEffect(() => {
+const ps = () => window.dispatchEvent(new CustomEvent('game-pause-sound'));
+const rs = () => window.dispatchEvent(new CustomEvent('game-resume-sound'));
+
+const hv = () => {
+if (document.hidden) {
+ps();
+} else {
+rs();
+}
+};
+
+document.addEventListener('visibilitychange', hv);
+document.addEventListener('pagehide', ps);
+window.addEventListener('blur', ps);
+window.addEventListener('focus', rs);
+
+return () => {
+document.removeEventListener('visibilitychange', hv);
+document.removeEventListener('pagehide', ps);
+window.removeEventListener('blur', ps);
+window.removeEventListener('focus', rs);
+};
+}, []);
+
+return null;
+}
+
+===== src/components/ui/badge.tsx =====
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />
+}
+
+export { Badge, badgeVariants }
+
+===== src/components/ui/button.tsx =====
+"use client"
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, ...props }, ref) => {
+  const Comp = "button"
+  return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+})
+Button.displayName = "Button"
+
+export { Button, buttonVariants }
+
+===== src/components/ui/progress.tsx =====
+"use client";
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
+  value?: number;
+  max?: number;
+}
+
+export const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
+  ({ className, value = 0, max = 100, ...props }, ref) => {
+    const percentage = Math.min(100, Math.max(0, (value / max) * 100));
+    
+    return (
+      <div
+        ref={ref}
+        className={cn("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className)}
+        {...props}
+      >
+        <div
+          className="h-full w-full flex-1 bg-primary transition-all duration-300"
+          style={{ transform: `translateX(-${100 - percentage}%)` }}
+        />
+      </div>
+    );
+  }
+);
+
+Progress.displayName = "Progress";
+===== src/components/ui/simple-avatar.tsx =====
+"use client";
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+export const Avatar = ({ children, className, ...props }: { children: React.ReactNode; className?: string }) => (
+  <div className={cn("relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full", className)} {...props}>
+    {children}
+  </div>
+);
+
+export const AvatarImage = ({ src, alt, className, ...props }: { src?: string; alt?: string; className?: string }) => (
+  <img src={src} alt={alt} className={cn("aspect-square h-full w-full object-cover", className)} {...props} />
+);
+
+export const AvatarFallback = ({ children, className, ...props }: { children: React.ReactNode; className?: string }) => (
+  <div className={cn("flex h-full w-full items-center justify-center bg-muted", className)} {...props}>
+    {children}
+  </div>
+);
+
+===== src/components/ui/simple-dialog.tsx =====
+"use client";
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+interface SimpleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+  className?: string;
+  hideCloseButton?: boolean;
+}
+
+export function SimpleDialog({ open, onOpenChange, children, className, hideCloseButton }: SimpleDialogProps) {
+  if (!open) return null;
+  
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div 
+        className="fixed inset-0 bg-black/80" 
+        onClick={() => onOpenChange(false)}
+      />
+      <div className={cn("relative z-50 bg-background rounded-lg shadow-lg p-6 max-w-md w-full mx-4", className)}>
+        {children}
+        {!hideCloseButton && (
+          <button
+            className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100"
+            onClick={() => onOpenChange(false)}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function SimpleDialogHeader({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("mb-4", className)}>{children}</div>;
+}
+
+export function SimpleDialogTitle({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <h2 className={cn("text-xl font-bold", className)}>{children}</h2>;
+}
+
+export function SimpleDialogDescription({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>;
+}
+
+export function SimpleDialogFooter({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("mt-6 flex justify-end gap-2", className)}>{children}</div>;
+}
+
+===== src/hooks/useAchievements.ts =====
+"use client";
+import { useState, useCallback, useRef } from 'react';
+import { achievementsList } from '@/lib/achievements';
+import type { PlayerAchievementsState, UnlockedAchievement, GameState } from '@/lib/game-types';
+
+const initialAchievementsState: PlayerAchievementsState = achievementsList.reduce((acc, ach) => {
+  acc[ach.id] = { currentTier: -1, progress: 0 };
+  return acc;
+}, {} as PlayerAchievementsState);
+
+export const useAchievements = () => {
+  const [playerAchievements, setPlayerAchievements] = useState<PlayerAchievementsState>(initialAchievementsState);
+  const [unlockedQueue, setUnlockedQueue] = useState<UnlockedAchievement[]>([]);
+  const stateRef = useRef(playerAchievements);
+  stateRef.current = playerAchievements;
+
+  const loadAchievements = useCallback((savedData: any) => {
+    if (savedData && typeof savedData === 'object') {
+      const newState = { ...initialAchievementsState };
+      for (const id in savedData) {
+        if (id in newState) {
+          newState[id] = { currentTier: savedData[id].currentTier ?? -1, progress: savedData[id].progress ?? 0 };
+        }
+      }
+      setPlayerAchievements(newState);
+    }
+  }, []);
+
+  const saveAchievements = useCallback(() => stateRef.current, []);
+  const resetAchievements = useCallback(() => { setPlayerAchievements(initialAchievementsState); }, []);
+
+  const checkAndUnlockAchievements = useCallback((gameState: GameState) => {
+    let newState = { ...stateRef.current };
+    const newlyUnlocked: UnlockedAchievement[] = [];
+    let rewards = { score: 0 };
+
+    achievementsList.forEach(achievement => {
+      const progress = newState[achievement.id];
+      achievement.tiers.forEach((tier, tierIndex) => {
+        if (tierIndex > progress.currentTier) {
+          let val = progress.progress;
+          switch (achievement.id) {
+            case 'level_milestone': val = gameState.level; break;
+            case 'score_milestone': val = gameState.score; break;
+            case 'combo_master': val = Math.max(progress.progress, gameState.comboCounter); break;
+            case 'bonus_user': val = gameState.bonusesUsed; break;
+            case 'pacifist': val = gameState.pacifistLevelsWon; break;
+            case 'quick_thinker': val = gameState.swapsUsed; break;
+            case 'sniper': val = gameState.sniperShots; break;
+            case 'perfectionist': val = gameState.totalRestarts; break;
+            case 'chain_reaction': val = gameState.maxBubblesClearedInOneShot; break;
+          }
+          newState[achievement.id].progress = val;
+          if (val >= tier.goal) {
+            newState[achievement.id].currentTier = tierIndex;
+            rewards.score += tier.reward.score || 0;
+            newlyUnlocked.push({ ...achievement, unlockedTier: tier, id: `${achievement.id}-${tierIndex}-${Date.now()}` });
+          }
+        }
+      });
+    });
+
+    if (newlyUnlocked.length > 0) { 
+      setPlayerAchievements(newState); 
+      setUnlockedQueue(prev => [...prev, ...newlyUnlocked]); 
+    }
+    return rewards;
+  }, []);
+
+  const acknowledgeUnlock = useCallback((id: string) => { 
+    setUnlockedQueue(prev => prev.filter(item => item.id !== id)); 
+  }, []);
+
+  return { playerAchievements, unlockedQueue, loadAchievements, saveAchievements, checkAndUnlockAchievements, acknowledgeUnlock, resetAchievements };
+};
+
+===== src/hooks/useI18n.tsx =====
+'use client';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import ru from '@/locales/ru.json';
+import en from '@/locales/en.json';
+
+const translations = { ru, en };
+export type Language = keyof typeof translations;
+
+type I18nContextType = { language: Language; setLanguage: (lang: string) => void; t: (key: string, params?: Record<string, string | number>) => string };
+const I18nContext = createContext<I18nContextType | undefined>(undefined);
+
+export const I18nProvider = ({ children }: { children: React.ReactNode }) => {
+  const [language, setLanguageState] = useState<Language>('ru');
+
+  useEffect(() => { 
+    const saved = localStorage.getItem('bubbleBlastArenaLang'); 
+    if (saved && saved in translations) setLanguageState(saved as Language); 
+  }, []);
+
+  const setLanguage = useCallback((lang: string) => {
+    const supported = lang in translations ? lang : 'ru';
+    localStorage.setItem('bubbleBlastArenaLang', supported);
+    setLanguageState(supported as Language);
+  }, []);
+
+  const t = useCallback((key: string, params?: Record<string, string | number>) => {
+    const keys = key.split('.');
+    let result: any = translations[language];
+    for (const k of keys) {
+      result = result?.[k];
+      if (result === undefined) return key;
+    }
+    if (typeof result === 'string' && params) {
+      let str = result;
+      for (const [k, v] of Object.entries(params)) {
+        str = str.replace(new RegExp(`{{${k}}}`, 'g'), String(v));
+      }
+      return str;
+    }
+    return typeof result === 'string' ? result : key;
+  }, [language]);
+
+  return <I18nContext.Provider value={{ language, setLanguage, t }}>{children}</I18nContext.Provider>;
+};
+
+export const useI18n = () => { 
+  const ctx = useContext(I18nContext); 
+  if (!ctx) throw new Error('useI18n: must be used within I18nProvider'); 
+  return ctx; 
+};
+
+export const LanguageManager = () => { 
+  const { language } = useI18n(); 
+  useEffect(() => { 
+    document.documentElement.lang = language; 
+  }, [language]); 
+  return null; 
+};
+
+===== src/lib/achievements.ts =====
+import { Trophy, Star, Zap, Rocket, ZapOff, Target, ShoppingCart, Timer, ShieldCheck, Heart } from 'lucide-react';
+import type { Achievement } from './game-types';
+
+const tierColors = {
+bronze: 'text-[#cd7f32]', silver: 'text-[#c0c0c0]', gold: 'text-[#ffd700]',
+diamond: 'text-[#b9f2ff]', master: 'text-[#9d72e8]',
+};
+
+export const achievementsList: Achievement[] = [
+{
+id: 'level_milestone', name: 'achievements.level_milestone.name', description: 'achievements.level_milestone.description',
+icon: (tier) => ({ component: Trophy, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 5, reward: { score: 500 } },
+{ name: 'achievements.tiers.silver', goal: 15, reward: { score: 2000 } },
+{ name: 'achievements.tiers.gold', goal: 30, reward: { score: 5000 } },
+],
+},
+{
+id: 'score_milestone', name: 'achievements.score_milestone.name', description: 'achievements.score_milestone.description',
+icon: (tier) => ({ component: Star, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 10000, reward: { score: 1000 } },
+{ name: 'achievements.tiers.silver', goal: 100000, reward: { score: 10000 } },
+{ name: 'achievements.tiers.gold', goal: 500000, reward: { score: 50000 } },
+],
+},
+{
+id: 'combo_master', name: 'achievements.combo_master.name', description: 'achievements.combo_master.description',
+icon: (tier) => ({ component: Zap, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 5, reward: { score: 500 } },
+{ name: 'achievements.tiers.silver', goal: 10, reward: { score: 2000 } },
+{ name: 'achievements.tiers.gold', goal: 15, reward: { score: 5000 } },
+],
+},
+{
+id: 'chain_reaction', name: 'achievements.chain_reaction.name', description: 'achievements.chain_reaction.description',
+icon: (tier) => ({ component: Rocket, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 15, reward: { score: 1000 } },
+{ name: 'achievements.tiers.silver', goal: 30, reward: { score: 4000 } },
+{ name: 'achievements.tiers.gold', goal: 50, reward: { score: 10000 } },
+],
+},
+{
+id: 'pacifist', name: 'achievements.pacifist.name', description: 'achievements.pacifist.description',
+icon: (tier) => ({ component: ZapOff, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 1, reward: { score: 2000 } },
+{ name: 'achievements.tiers.gold', goal: 5, reward: { score: 10000 } },
+],
+},
+{
+id: 'sniper', name: 'achievements.sniper.name', description: 'achievements.sniper.description',
+icon: (tier) => ({ component: Target, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 20, reward: { score: 1500 } },
+{ name: 'achievements.tiers.gold', goal: 100, reward: { score: 10000 } },
+],
+},
+{
+id: 'big_spender', name: 'achievements.big_spender.name', description: 'achievements.big_spender.description',
+icon: (tier) => ({ component: ShoppingCart, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 5000, reward: { score: 1000 } },
+{ name: 'achievements.tiers.gold', goal: 50000, reward: { score: 10000 } },
+],
+},
+{
+id: 'rapid_fire', name: 'achievements.rapid_fire.name', description: 'achievements.rapid_fire.description',
+icon: (tier) => ({ component: Timer, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 50, reward: { score: 2000 } },
+{ name: 'achievements.tiers.gold', goal: 250, reward: { score: 15000 } },
+],
+},
+{
+id: 'survivor', name: 'achievements.survivor.name', description: 'achievements.survivor.description',
+icon: (tier) => ({ component: ShieldCheck, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 3, reward: { score: 3000 } },
+{ name: 'achievements.tiers.gold', goal: 10, reward: { score: 15000 } },
+],
+},
+{
+id: 'perfectionist', name: 'achievements.perfectionist.name', description: 'achievements.perfectionist.description',
+icon: (tier) => ({ component: Heart, className: Object.values(tierColors)[Math.min(tier, 4)] }),
+tiers: [
+{ name: 'achievements.tiers.bronze', goal: 1, reward: { score: 5000 } },
+{ name: 'achievements.tiers.gold', goal: 5, reward: { score: 25000 } },
+],
+},
+];
+
+===== src/lib/constants.ts =====
+export const GRID_ROWS = 20;
+export const GRID_COLS = 12;
+export const BUBBLE_DIAMETER = 42;
+export const BUBBLE_RADIUS = 21;
+export const COLORS = { 
+  blue: '#2979FF', 
+  purple: '#D500F9', 
+  red: '#FF1744', 
+  green: '#00E676', 
+  yellow: '#FFD600', 
+  orange: '#FF9100' 
+};
+export const COLOR_NAMES = Object.keys(COLORS) as (keyof typeof COLORS)[];
+export const COLOR_VALUES = Object.values(COLORS);
+export const STONE_BUBBLE = 'stone';
+export const GAME_WIDTH = GRID_COLS * BUBBLE_DIAMETER;
+export const GAME_HEIGHT = 850;
+export const BASE_SCORE = 10;
+export const SCORE_MULTIPLIER_INCREMENT = 20;
+export const FALLING_BUBBLE_SCORE = 10;
+export const COMBO_BONUS = 30;
+
+===== src/lib/game-logic.ts =====
+import { BUBBLE_DIAMETER, BUBBLE_RADIUS, GRID_COLS, GRID_ROWS } from '@/lib/constants';
+
+export const getBubblePosition = (row: number, col: number) => {
+  const isOddRow = row % 2 === 1;
+  const y = row * (BUBBLE_DIAMETER * 0.866);
+  let x = col * BUBBLE_DIAMETER;
+  if (isOddRow) x += BUBBLE_RADIUS;
+  return { x, y };
+};
+
+export const getBubbleCenterPosition = (row: number, col: number) => {
+  const { x, y } = getBubblePosition(row, col);
+  return { x: x + BUBBLE_RADIUS, y: y + BUBBLE_RADIUS };
+};
+
+export const getNeighbors = (row: number, col: number): [number, number][] => {
+  const isOddRow = row % 2 === 1;
+  const candidates: [number, number][] = [
+    [row, col - 1], [row, col + 1], [row - 1, col], [row + 1, col],
+  ];
+  if (isOddRow) {
+    candidates.push([row - 1, col + 1], [row + 1, col + 1]);
+  } else {
+    candidates.push([row - 1, col - 1], [row + 1, col - 1]);
+  }
+  return candidates.filter(([r, c]) => {
+    if (r < 0 || r >= GRID_ROWS || c < 0) return false;
+    const neighborCols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+    return c < neighborCols;
+  });
+};
+
+===== src/lib/game-types.ts =====
+import type React from 'react';
+
+export type BubbleColor = string | null;
+export type Grid = BubbleColor[][];
+export type FlyingBubble = { x: number; y: number; color: BubbleColor; angle: number; diameter: number };
+export type GameStatus = 'ready' | 'playing' | 'won' | 'lost' | 'paused' | 'shop' | 'level_complete';
+export type BonusType = 'bomb';
+export type PoppedBubble = { key: string; x: number; y: number; color: BubbleColor; type: 'pop' | 'fall' | 'dissolve' };
+export type Trajectory = { points: {x: number, y: number}[]; color: BubbleColor; endBubble: { x: number; y: number; color: BubbleColor } | null };
+export type Particle = { key: string; x: number; y: number; vx: number; vy: number; lifespan: number; size: number; color: string; type: 'spark' | 'burst' | 'glitter' | 'smoke' | 'glow' | 'bubble' };
+
+export type GameState = {
+level: number; grid: Grid; availableColors: string[]; shotsTaken: number;
+shotsSinceDrop: number; shotsBeforeDrop: number; score: number; status: GameStatus;
+currentBubble: BubbleColor; nextBubble: BubbleColor; flyingBubble: FlyingBubble | null;
+activeBonus: BonusType | null; bombBonusCount: number;
+bonusesUsed: number; comboCounter: number; poppingBubbles: PoppedBubble[];
+bombExploded: boolean; bombExplosionPosition: { x: number, y: number } | null;
+comboDisplay: { count: number; x: number; y: number; key: string } | null;
+gridDropKey: number; panicModeActive: boolean; panicModeTimer: number;
+shotsUntilPanic: number; clearedColor: { color: BubbleColor; key: string } | null;
+wasLastShotPanic: boolean; levelStartState: Partial<GameState> | null;
+levelStartTime: number; successfulShotsThisLevel: number; bubblesPoppedThisLevel: number;
+maxComboThisLevel: number; bonusesUsedThisLevel: number; pacifistLevelsWon: number;
+swapsUsed: number; totalScoreSpent: number; totalRestarts: number;
+sniperShots: number; maxBubblesClearedInOneShot: number;
+};
+
+export type Action =
+| { type: 'START_LEVEL'; level: number; savedState?: Partial<GameState> }
+| { type: 'SHOOT_BUBBLE'; angle: number; isPanicShot?: boolean }
+| { type: 'PROCESS_ATTACHED_BUBBLE'; row: number; col: number }
+| { type: 'UPDATE_FLYING_BUBBLE'; flyingBubble: FlyingBubble }
+| { type: 'PAUSE_TOGGLE' }
+| { type: 'START_NEW_GAME'; keepAchievements?: boolean }
+| { type: 'NEXT_LEVEL' }
+| { type: 'PROCEED_TO_SHOP' }
+| { type: 'SELECT_BONUS'; bonus: BonusType }
+| { type: 'BUY_BONUS'; bonus: BonusType; cost: number }
+| { type: 'SWAP_BUBBLES' }
+| { type: 'ACKNOWLEDGE_BOMB' }
+| { type: 'ADD_BONUS'; bonus: BonusType }
+| { type: 'ADD_SCORE'; amount: number }
+| { type: 'PANIC_TICK' }
+| { type: 'DEACTIVATE_PANIC_MODE' }
+| { type: 'RESTART_LEVEL' }
+| { type: 'REVIVE_GAME' }
+| { type: 'CLEAR_CLEARED_COLOR' };
+
+export type AchievementTier = { name: string; goal: number; reward: { score: number } };
+export type Achievement = { id: string; name: string; description: string; icon: (tier: number) => { component: React.ElementType; className: string }; tiers: AchievementTier[] };
+export type UnlockedAchievement = Achievement & { unlockedTier: AchievementTier; id: string };
+export type PlayerAchievementsState = { [achievementId: string]: { currentTier: number; progress: number } };
+===== src/lib/levels.ts =====
+import { GRID_ROWS, GRID_COLS, COLOR_VALUES, STONE_BUBBLE } from '@/lib/constants';
+import type { Grid } from '@/lib/game-types';
+
+const generateGrid = (rowsToFill: number, numColors: number, level: number): Grid => {
+const grid: Grid = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+const safeRowsToFill = Math.min(rowsToFill, GRID_ROWS - 4);
+const availableColors = [...COLOR_VALUES];
+const colorsToUse = availableColors.slice(0, Math.min(numColors, availableColors.length));
+let stoneBubbleCount = 0;
+const maxStones = Math.min(5, Math.floor(level / 5));
+
+for (let row = 0; row < safeRowsToFill; row++) {
+const colsToFill = row % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+for (let col = 0; col < colsToFill; col++) {
+if (level >= 5 && stoneBubbleCount < maxStones && Math.random() < 0.08) {
+grid[row][col] = STONE_BUBBLE;
+stoneBubbleCount++;
+continue;
+}
+if (Math.random() > 0.10 && colorsToUse.length > 0) {
+grid[row][col] = colorsToUse[Math.floor(Math.random() * colorsToUse.length)];
+}
+}
+}
+return grid;
+};
+
+export const getLevel = (level: number) => ({
+id: level,
+grid: generateGrid(Math.min(GRID_ROWS - 4, 4 + Math.floor((level - 1) / 3)), Math.min(COLOR_VALUES.length, 3 + Math.floor((level - 1) / 4)), level),
+targetShots: 25 + (level * 2),
+shotsBeforeDrop: 5,
+});
+
+export const getAvailableColors = (grid: Grid): string[] => {
+const colorSet = new Set<string>();
+for (let r = 0; r < GRID_ROWS; r++) {
+const row = grid[r];
+if (!row) continue;
+for (let c = 0; c < GRID_COLS; c++) {
+const cell = row[c];
+if (cell && cell !== STONE_BUBBLE && cell !== 'bomb' && COLOR_VALUES.includes(cell)) {
+colorSet.add(cell);
+}
+}
+}
+if (colorSet.size === 0) return [...COLOR_VALUES];
+return Array.from(colorSet);
+};
+===== src/lib/platform/index.ts =====
+import type { IPlatform } from './types';
+import { SimplePlatform } from './simple';
+
+export const platform: IPlatform = new SimplePlatform();
+
+===== src/lib/platform/simple.ts =====
+import type { IPlatform, PlatformPlayer, PlatformLeaderboardEntry } from './types';
+
+class SimplePlayer implements PlatformPlayer {
+  getName() { return 'Player'; }
+  getAvatar() { return ''; }
+  getUniqueID() { return 'local-' + Date.now(); }
+}
+
+export class SimplePlatform implements IPlatform {
+  platformId = 'yandex' as const;
+  isReady = true;
+
+  async init() {
+    console.log('Simple platform initialized');
+  }
+
+  gameReady() {}
+
+  async getPlayer(): Promise<PlatformPlayer | null> {
+    return new SimplePlayer();
+  }
+
+  async isAuthorized(): Promise<boolean> {
+    return false;
+  }
+
+  async openAuthDialog(): Promise<boolean> {
+    return false;
+  }
+
+  async getLeaderboardEntries(name: string, score?: number) {
+    return { userEntry: null, entries: [] };
+  }
+
+  async setLeaderboardScore(name: string, score: number) {}
+
+  showFullscreenAd(c: { onClose?: (s: boolean) => void; onError?: (e: any) => void }) {
+    setTimeout(() => c.onClose?.(false), 100);
+  }
+
+  showRewardedVideo(c: { onRewarded?: () => void; onClose?: (s: boolean) => void; onError?: (e: any) => void }) {
+    setTimeout(() => {
+      c.onRewarded?.();
+      c.onClose?.(true);
+    }, 100);
+  }
+
+  getLang() {
+    return 'ru';
+  }
+
+  gameplay = {
+    start: () => {},
+    stop: () => {},
+    ready: () => {}
+  };
+
+  adv = {
+    showBanner: async () => {},
+    hideBanner: async () => {}
+  };
+
+  playerData = {
+    get: async (keys?: string[]) => {
+      return {};
+    },
+    set: async (data: object, flush?: boolean) => {}
+  };
+}
+
+===== src/lib/platform/types.ts =====
+export interface PlatformPlayer {
+getAvatar(): string;
+getName(): string;
+getUniqueID(): string;
+}
+
+export interface PlatformLeaderboardEntry {
+rank: number;
+score: number;
+name: string;
+avatar: string;
+isCurrentUser: boolean;
+uniqueID: string;
+}
+
+export interface IPlatform {
+readonly platformId: 'yandex';
+isReady: boolean;
+init(): Promise<void>;
+gameReady(): void;
+getPlayer(): Promise<PlatformPlayer | null>;
+isAuthorized(): Promise<boolean>;
+openAuthDialog(): Promise<boolean>;
+canShowAds?(): boolean;
+getLeaderboardEntries(leaderboardName: string, currentScore?: number): Promise<{ userEntry: PlatformLeaderboardEntry | null; entries: PlatformLeaderboardEntry[] }>;
+setLeaderboardScore(leaderboardName: string, score: number): Promise<void>;
+showFullscreenAd(callbacks: { onClose?: (wasShown: boolean) => void; onError?: (error: any) => void }): void;
+showRewardedVideo(callbacks: { onOpen?: () => void; onRewarded?: () => void; onClose?: (wasShown: boolean) => void; onError?: (error: any) => void }): void;
+getLang(): string;
+gameplay: { start(): void; stop(): void; ready(): void };
+adv: { showBanner(): Promise<void>; hideBanner(): Promise<void> };
+playerData: { get(keys?: string[]): Promise<any>; set(data: object, flush?: boolean): Promise<void> };
+}
+
+===== src/lib/utils.ts =====
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+import type React from "react";
+import { COLORS, STONE_BUBBLE } from "./constants";
+
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+
+function shadeColor(color: string, percent: number) {
+  if (color.length !== 7 || color[0] !== '#') return color;
+  const f = parseInt(color.slice(1), 16), t = percent < 0 ? 0 : 255, p = percent < 0 ? percent * -1 : percent;
+  const R = f >> 16, G = f >> 8 & 0x00FF, B = f & 0x0000FF;
+  return `#${(0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1)}`;
+}
+
+export function getBubbleCanvasStyle(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, diameter: number, theme: 'light' | 'dark'): void {
+  if (!color) return;
+  
+  // Каменные пузыри рисуем по-особенному
+  if (color === STONE_BUBBLE) {
+    const radius = diameter / 2, bubbleX = x + radius, bubbleY = y + radius;
+    ctx.save();
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.arc(bubbleX, bubbleY, radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#888888';
+    ctx.fill();
+    ctx.fillStyle = '#666666';
+    ctx.font = `${radius}px Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('💎', bubbleX, bubbleY);
+    ctx.restore();
+    return;
+  }
+  
+  const radius = diameter / 2, bubbleX = x + radius, bubbleY = y + radius;
+  ctx.save();
+  if (theme === 'dark') { ctx.shadowColor = color !== STONE_BUBBLE ? color : 'rgba(255,255,255,0.3)'; ctx.shadowBlur = 8; }
+  else { ctx.shadowColor = 'rgba(0, 0, 0, 0.25)'; ctx.shadowBlur = 10; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4; }
+  const baseColor = color === 'bomb' ? '#333333' : color;
+  const lightShade = theme === 'dark' ? 0.7 : 0.5, darkShade = theme === 'dark' ? -0.35 : -0.5;
+  const bodyGradient = ctx.createRadialGradient(bubbleX, bubbleY, 0, bubbleX, bubbleY, radius);
+  bodyGradient.addColorStop(0, shadeColor(baseColor, lightShade)); 
+  bodyGradient.addColorStop(0.5, baseColor); 
+  bodyGradient.addColorStop(1, shadeColor(baseColor, darkShade));
+  ctx.beginPath(); ctx.arc(bubbleX, bubbleY, radius, 0, Math.PI * 2); ctx.fillStyle = bodyGradient; ctx.fill();
+  if (theme === 'dark') { ctx.beginPath(); ctx.arc(bubbleX, bubbleY, radius - 0.5, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(bubbleX - radius * 0.4, bubbleY - radius * 0.4, radius * 0.15, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+  ctx.restore();
+}
+
+export function dropStyle(color: string, theme: 'light' | 'dark'): React.CSSProperties {
+  if (!color) return {};
+  
+  if (color === STONE_BUBBLE) {
+    return { 
+      borderRadius: '50%', 
+      position: 'relative', 
+      width: '100%', 
+      height: '100%', 
+      background: '#888888',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '20px',
+      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.1)'
+    };
+  }
+  
+  const boxShadow = theme === 'dark' ? `0 0 8px ${color !== STONE_BUBBLE ? color : 'rgba(255,255,255,0.3)'}` : '3px 3px 6px rgba(0,0,0,0.25)';
+  const baseColor = color === 'bomb' ? '#333333' : color;
+  const lightShade = theme === 'dark' ? 0.7 : 0.5, darkShade = theme === 'dark' ? -0.35 : -0.5;
+  const body = `radial-gradient(circle at 50% 50%, ${shadeColor(baseColor, lightShade)}, ${baseColor} 50%, ${shadeColor(baseColor, darkShade)} 100%)`;
+  const highlight = 'radial-gradient(circle at 30% 25%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 15%)';
+  
+  return { borderRadius: '50%', position: 'relative', width: '100%', height: '100%', boxShadow, background: `${highlight}, ${body}` };
+}
+===== src/locales/en.json =====
+{
+"game": {
+"paused": "PAUSED",
+"nextBubbleLabel": "Next",
+"combo": "COMBO!",
+"ok": "OK"
+},
+"header": {
+"level": "Level",
+"score": "Score",
+"shop": "Shop",
+"menu": "Menu",
+"leaderboard": "Leaders",
+"achievements": "Achievements",
+"howToPlay": "How to Play",
+"unmute": "Unmute",
+"mute": "Mute",
+"lightTheme": "Light",
+"darkTheme": "Dark",
+"language": "Language",
+"restartLevel": "Restart",
+"login": "Log in",
+"logout": "Log Out"
+},
+"rightPanel": {
+"bonuses": "Bonuses",
+"bomb": "Bomb",
+"clearRow": "Clear Row",
+"shop": "Shop",
+"settings": "Settings",
+"resume": "Resume",
+"pause": "Pause",
+"loggedInAs": "Logged in as"
+},
+"leftPanel": {
+"level": "Level",
+"score": "Score",
+"shotsUntilDrop": "Misses",
+"next": "Next"
+},
+"gameOver": {
+"title": "GAME OVER",
+"description": "Bubbles reached the line.",
+"score": "Score:",
+"continueWithAd": "Continue",
+"restart": "Start Over"
+},
+"shop": {
+"levelCompleteTitle": "LEVEL COMPLETE!",
+"levelCompleteDescription": "Spend points.",
+"title": "SHOP",
+"yourScore": "Score",
+"bombName": "Bomb",
+"bombDescription": "Radius explosion.",
+"clearRowName": "Clear Row",
+"clearRowDescription": "Removes top row of bubbles",
+"inStock": "In stock:",
+"buy": "Buy",
+"freeBonusesTitle": "Free",
+"freeBonusesDescription": "Watch ad.",
+"nextLevel": "Next",
+"continue": "Continue"
+},
+"leaderboard": {
+"title": "Leaderboard",
+"error": "Error",
+"noData": "Empty",
+"close": "Close",
+"yourPosition": "Your Position",
+"authMessage": "Log in to compete."
+},
+"achievements": {
+"title": "Achievements",
+"close": "Close",
+"reward": "Reward",
+"unlocked": "Unlocked!",
+"toastTitle": "Achievement Unlocked!",
+"level_milestone": { "name": "Trailblazer", "description": "Complete as many levels as possible." },
+"score_milestone": { "name": "Tycoon", "description": "Accumulate a massive amount of points." },
+"combo_master": { "name": "Virtuoso", "description": "Achieve a long combo streak." },
+"chain_reaction": { "name": "Chain Reaction", "description": "Clear many bubbles in one shot." },
+"pacifist": { "name": "Clean Win", "description": "Clear levels without using any bonuses." },
+"sniper": { "name": "Sniper", "description": "Make a series of accurate shots." },
+"big_spender": { "name": "Big Spender", "description": "Spend points in the shop." },
+"rapid_fire": { "name": "Rapid Fire", "description": "Make many successful shots." },
+"survivor": { "name": "Survivor", "description": "Deal with panic mode successfully." },
+"perfectionist": { "name": "Perfectionist", "description": "Clear levels without misses." },
+"tiers": {
+"bronze": "Bronze",
+"silver": "Silver",
+"gold": "Gold",
+"diamond": "Diamond",
+"master": "Master"
+}
+},
+"orientation": {
+"message": "Rotate to portrait."
+},
+"loginDialog": {
+"title": "Sync",
+"description": "Login for cloud.",
+"benefitCloud": "Cloud saves.",
+"benefitLeaderboard": "Leaderboard.",
+"guestInfo": "Guest: local only.",
+"loginButton": "Login",
+"cancelButton": "Guest",
+"processing": "Loading..."
+},
+"levelComplete": {
+"title": "Level Clear!",
+"description": "Stats.",
+"time": "Time",
+"shots": "Shots",
+"accuracy": "Accuracy",
+"bestCombo": "Best Combo",
+"bubblesPopped": "Popped",
+"continue": "To Shop"
+},
+"howToPlay": {
+"title": "How to Play",
+"goalTitle": "Your Goal",
+"goalDescription": "Clear the entire board of colored bubbles by popping them in groups.",
+"controlsTitle": "Controls",
+"controlsDescription": "Tap (or touch) and hold to aim. Release to shoot the bubble.",
+"matchTitle": "Matches",
+"matchDescription": "Connect 3 or more bubbles of the same color to make them pop.",
+"dropTitle": "Grid Drop",
+"dropDescription": "Every 5 shots without a pop, the grid drops. Don't let them reach the red line!",
+"panicTitle": "Panic Mode",
+"panicDescription": "Panic starts randomly! Aim disappears, and you have only 5 seconds to shoot.",
+"bonusTitle": "Bonuses",
+"bonusDescription": "Bomb: Explodes everything nearby. Clear Row: Removes the top row of bubbles.",
+"close": "Play!"
+},
+"welcome": {
+"loading": "Loading...",
+"subtitle": "Aim, shoot, blast!",
+"errorTitle": "Error",
+"connecting": "Connecting...",
+"syncButton": "Play & Save",
+"guestButton": "Play as Guest",
+"cloudTitle": "Cloud Save",
+"cloudDesc": "Progress on all devices",
+"leaderboardTitle": "Leaderboard",
+"leaderboardDesc": "Compete with players",
+"guestWarning": "Guest: local progress only"
+}
+}
+===== src/locales/ru.json =====
+{
+"game": {
+"paused": "ПАУЗА",
+"nextBubbleLabel": "След.",
+"combo": "COMBO!",
+"ok": "ОК"
+},
+"header": {
+"level": "Уровень",
+"score": "Счет",
+"shop": "Магазин",
+"menu": "Меню",
+"leaderboard": "Лидеры",
+"achievements": "Достижения",
+"howToPlay": "Как играть",
+"unmute": "Вкл.звук",
+"mute": "Выкл.звук",
+"lightTheme": "Светлая",
+"darkTheme": "Темная",
+"language": "Язык",
+"restartLevel": "Заново",
+"login": "Войти",
+"logout": "Выйти"
+},
+"rightPanel": {
+"bonuses": "Бонусы",
+"bomb": "Бомба",
+"clearRow": "Очистка ряда",
+"shop": "Магазин",
+"settings": "Настройки",
+"resume": "Продолжить",
+"pause": "Пауза",
+"loggedInAs": "Вошли как"
+},
+"leftPanel": {
+"level": "Уровень",
+"score": "Счет",
+"shotsUntilDrop": "Промахов",
+"next": "След."
+},
+"gameOver": {
+"title": "ИГРА ОКОНЧЕНА",
+"description": "Шарики достигли черты.",
+"score": "Счет:",
+"continueWithAd": "Продолжить",
+"restart": "Заново"
+},
+"shop": {
+"levelCompleteTitle": "УРОВЕНЬ ПРОЙДЕН!",
+"levelCompleteDescription": "Потратьте очки.",
+"title": "МАГАЗИН",
+"yourScore": "Счет",
+"bombName": "Бомба",
+"bombDescription": "Взрыв в радиусе.",
+"clearRowName": "Очистка ряда",
+"clearRowDescription": "Удаляет верхний ряд пузырей",
+"inStock": "В наличии:",
+"buy": "Купить",
+"freeBonusesTitle": "Бесплатно",
+"freeBonusesDescription": "За рекламу.",
+"nextLevel": "Далее",
+"continue": "Продолжить"
+},
+"leaderboard": {
+"title": "Лидеры",
+"error": "Ошибка",
+"noData": "Пусто",
+"close": "Закрыть",
+"yourPosition": "Ваша позиция",
+"authMessage": "Войдите для рейтинга."
+},
+"achievements": {
+"title": "Достижения",
+"close": "Закрыть",
+"reward": "Награда",
+"unlocked": "Открыто!",
+"toastTitle": "Новое достижение!",
+"level_milestone": { "name": "Первопроходец", "description": "Пройдите как можно больше уровней." },
+"score_milestone": { "name": "Магнат", "description": "Наберите внушительную сумму очков." },
+"combo_master": { "name": "Виртуоз", "description": "Соберите серию комбо." },
+"chain_reaction": { "name": "Цепная реакция", "description": "Уничтожьте много шаров за раз." },
+"pacifist": { "name": "Чистая победа", "description": "Пройдите уровень без бонусов." },
+"sniper": { "name": "Снайпер", "description": "Совершите серию точных попаданий." },
+"big_spender": { "name": "Транжира", "description": "Потратьте очки в магазине." },
+"rapid_fire": { "name": "Скорострел", "description": "Сделайте много точных выстрелов." },
+"survivor": { "name": "Выживший", "description": "Справьтесь с режимом паники." },
+"perfectionist": { "name": "Перфекционист", "description": "Пройдите уровни без промахов." },
+"tiers": {
+"bronze": "Бронза",
+"silver": "Серебро",
+"gold": "Золото",
+"diamond": "Алмаз",
+"master": "Мастер"
+}
+},
+"orientation": {
+"message": "Поверните устройство."
+},
+"loginDialog": {
+"title": "Синхронизация",
+"description": "Войдите для облака.",
+"benefitCloud": "Облачные сохранения.",
+"benefitLeaderboard": "Рейтинг.",
+"guestInfo": "Гость — локально.",
+"loginButton": "Войти",
+"cancelButton": "Гость",
+"processing": "Загрузка..."
+},
+"levelComplete": {
+"title": "Уровень пройден!",
+"description": "Статистика.",
+"time": "Время",
+"shots": "Выстрелов",
+"accuracy": "Точность",
+"bestCombo": "Комбо",
+"bubblesPopped": "Лопнуто",
+"continue": "В магазин"
+},
+"howToPlay": {
+"title": "Инструкция",
+"goalTitle": "Ваша цель",
+"goalDescription": "Очистите всё игровое поле от цветных шариков, лопая их группами.",
+"controlsTitle": "Управление",
+"controlsDescription": "Нажмите (или коснитесь) и удерживайте для прицеливания. Отпустите, чтобы выстрелить шариком.",
+"matchTitle": "Комбинации",
+"matchDescription": "Соберите 3 или более шарика одного цвета вместе, чтобы они лопнули.",
+"dropTitle": "Опускание поля",
+"dropDescription": "Каждые 5 выстрелов без лопания пузырьков ряд опускается ниже. Не дайте им достичь красной черты!",
+"panicTitle": "Режим Паники",
+"panicDescription": "В случайный момент включается Паника! Прицел исчезает, и у вас есть всего 5 секунд на выстрел.",
+"bonusTitle": "Бонусы",
+"bonusDescription": "Бомба взрывает всё вокруг. Очистка ряда удаляет самый верхний ряд пузырей.",
+"close": "Вперед!"
+},
+"welcome": {
+"loading": "Загрузка...",
+"subtitle": "Прицелься, выстрели, лопни!",
+"errorTitle": "Ошибка",
+"connecting": "Вход...",
+"syncButton": "Играть и сохранять",
+"guestButton": "Просто играть",
+"cloudTitle": "Облако",
+"cloudDesc": "Прогресс на всех устройствах",
+"leaderboardTitle": "Рейтинг",
+"leaderboardDesc": "Соревнуйтесь с лучшими",
+"guestWarning": "Гость — прогресс только в этом браузере"
+}
+}
+===== tailwind.config.ts =====
+import type {Config} from 'tailwindcss';
+
+export default {
+  darkMode: ['class'],
+  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        body: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        headline: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        code: ['monospace'],
+      },
+      colors: {
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+        popover: { DEFAULT: 'hsl(var(--popover))', foreground: 'hsl(var(--popover-foreground))' },
+        primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
+        secondary: { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },
+        muted: { DEFAULT: 'hsl(var(--muted))', foreground: 'hsl(var(--muted-foreground))' },
+        accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
+        destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        sidebar: { DEFAULT: 'hsl(var(--sidebar-background))', foreground: 'hsl(var(--sidebar-foreground))' },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 4px)',
+        sm: 'calc(var(--radius) - 8px)',
+      },
+      keyframes: {
+        'splat': { '0%': { transform: 'scale(1)', opacity: '1' }, '100%': { transform: 'scale(0)', opacity: '0' } },
+        'fall': { '0%': { transform: 'translateY(0) scale(1)', opacity: '1' }, '100%': { transform: 'translateY(600px) scale(0.5)', opacity: '0' } },
+        'flash': { '0%': { opacity: '0' }, '50%': { opacity: '0.8' }, '100%': { opacity: '0' } },
+        'combo': {
+          '0%': { transform: 'scale(0) rotate(-10deg)', opacity: '0' },
+          '30%': { transform: 'scale(1.4) rotate(5deg)', opacity: '1' },
+          '50%': { transform: 'scale(0.9) rotate(-2deg)' },
+          '70%': { transform: 'scale(1.1) rotate(1deg)' },
+          '100%': { transform: 'scale(1) rotate(0deg)', opacity: '1' },
+        },
+        'shake-screen': {
+          '0%,100%': { transform: 'translate(0,0)' },
+          '10%': { transform: 'translate(-8px,-4px)' },
+          '20%': { transform: 'translate(6px,3px)' },
+          '30%': { transform: 'translate(-10px,5px)' },
+          '40%': { transform: 'translate(8px,-3px)' },
+          '50%': { transform: 'translate(-6px,4px)' },
+          '60%': { transform: 'translate(10px,-5px)' },
+          '70%': { transform: 'translate(-4px,2px)' },
+          '80%': { transform: 'translate(5px,-2px)' },
+          '90%': { transform: 'translate(-2px,1px)' },
+        },
+        'color-shake': {
+          '0%,100%': { transform: 'translate(0, 0) scale(1)' },
+          '15%': { transform: 'translate(-12px, -8px) scale(1.1)' },
+          '30%': { transform: 'translate(10px, 6px) scale(1.15)' },
+          '45%': { transform: 'translate(-14px, 9px) scale(1.2)' },
+          '60%': { transform: 'translate(12px, -7px) scale(1.15)' },
+          '75%': { transform: 'translate(-8px, -5px) scale(1.1)' },
+          '90%': { transform: 'translate(5px, 4px) scale(1.05)' },
+        },
+        'color-explode': {
+          '0%': { transform: 'scale(1)', opacity: '1' },
+          '20%': { transform: 'scale(1.3)', opacity: '1' },
+          '50%': { transform: 'scale(2)', opacity: '0.8' },
+          '80%': { transform: 'scale(3)', opacity: '0.4' },
+          '100%': { transform: 'scale(5)', opacity: '0' },
+        },
+        'color-flash': {
+          '0%': { opacity: '0' },
+          '20%': { opacity: '0.8' },
+          '100%': { opacity: '0' },
+        },
+      },
+      animation: {
+        'splat': 'splat 0.3s ease-out forwards',
+        'fall': 'fall 1s cubic-bezier(0.55,0.085,0.68,0.53) forwards',
+        'flash': 'flash 0.2s ease-out forwards',
+        'combo': 'combo 0.6s cubic-bezier(0.68,-0.55,0.265,1.55) forwards',
+        'shake-screen': 'shake-screen 0.5s ease-out',
+        'color-shake': 'color-shake 0.5s ease-in-out',
+        'color-explode': 'color-explode 0.6s ease-out forwards',
+        'color-flash': 'color-flash 0.5s ease-out forwards',
+      },
+    },
+  },
+  plugins: [require('tailwindcss-animate')],
+} satisfies Config;
+
+===== tsconfig.json =====
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+
