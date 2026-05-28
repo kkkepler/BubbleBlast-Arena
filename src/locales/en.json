@@ -1,0 +1,148 @@
+{
+"game": {
+"paused": "PAUSED",
+"nextBubbleLabel": "Next",
+"combo": "COMBO!",
+"ok": "OK"
+},
+"header": {
+"level": "Level",
+"score": "Score",
+"shop": "Shop",
+"menu": "Menu",
+"leaderboard": "Leaders",
+"achievements": "Achievements",
+"howToPlay": "How to Play",
+"unmute": "Unmute",
+"mute": "Mute",
+"lightTheme": "Light",
+"darkTheme": "Dark",
+"language": "Language",
+"restartLevel": "Restart",
+"login": "Log in",
+"logout": "Log Out"
+},
+"rightPanel": {
+"bonuses": "Bonuses",
+"bomb": "Bomb",
+"clearRow": "Clear Row",
+"shop": "Shop",
+"settings": "Settings",
+"resume": "Resume",
+"pause": "Pause",
+"loggedInAs": "Logged in as"
+},
+"leftPanel": {
+"level": "Level",
+"score": "Score",
+"shotsUntilDrop": "Misses",
+"next": "Next"
+},
+"gameOver": {
+"title": "GAME OVER",
+"description": "Bubbles reached the line.",
+"score": "Score:",
+"continueWithAd": "Continue",
+"restart": "Start Over"
+},
+"shop": {
+"levelCompleteTitle": "LEVEL COMPLETE!",
+"levelCompleteDescription": "Spend points.",
+"title": "SHOP",
+"yourScore": "Score",
+"bombName": "Bomb",
+"bombDescription": "Radius explosion.",
+"clearRowName": "Clear Row",
+"clearRowDescription": "Removes top row of bubbles",
+"inStock": "In stock:",
+"buy": "Buy",
+"freeBonusesTitle": "Free",
+"freeBonusesDescription": "Watch ad.",
+"nextLevel": "Next",
+"continue": "Continue"
+},
+"leaderboard": {
+"title": "Leaderboard",
+"error": "Error",
+"noData": "Empty",
+"close": "Close",
+"yourPosition": "Your Position",
+"authMessage": "Log in to compete."
+},
+"achievements": {
+"title": "Achievements",
+"close": "Close",
+"reward": "Reward",
+"unlocked": "Unlocked!",
+"toastTitle": "Achievement Unlocked!",
+"level_milestone": { "name": "Trailblazer", "description": "Complete as many levels as possible." },
+"score_milestone": { "name": "Tycoon", "description": "Accumulate a massive amount of points." },
+"combo_master": { "name": "Virtuoso", "description": "Achieve a long combo streak." },
+"chain_reaction": { "name": "Chain Reaction", "description": "Clear many bubbles in one shot." },
+"pacifist": { "name": "Clean Win", "description": "Clear levels without using any bonuses." },
+"sniper": { "name": "Sniper", "description": "Make a series of accurate shots." },
+"big_spender": { "name": "Big Spender", "description": "Spend points in the shop." },
+"rapid_fire": { "name": "Rapid Fire", "description": "Make many successful shots." },
+"survivor": { "name": "Survivor", "description": "Deal with panic mode successfully." },
+"perfectionist": { "name": "Perfectionist", "description": "Clear levels without misses." },
+"tiers": {
+"bronze": "Bronze",
+"silver": "Silver",
+"gold": "Gold",
+"diamond": "Diamond",
+"master": "Master"
+}
+},
+"orientation": {
+"message": "Rotate to portrait."
+},
+"loginDialog": {
+"title": "Sync",
+"description": "Login for cloud.",
+"benefitCloud": "Cloud saves.",
+"benefitLeaderboard": "Leaderboard.",
+"guestInfo": "Guest: local only.",
+"loginButton": "Login",
+"cancelButton": "Guest",
+"processing": "Loading..."
+},
+"levelComplete": {
+"title": "Level Clear!",
+"description": "Stats.",
+"time": "Time",
+"shots": "Shots",
+"accuracy": "Accuracy",
+"bestCombo": "Best Combo",
+"bubblesPopped": "Popped",
+"continue": "To Shop"
+},
+"howToPlay": {
+"title": "How to Play",
+"goalTitle": "Your Goal",
+"goalDescription": "Clear the entire board of colored bubbles by popping them in groups.",
+"controlsTitle": "Controls",
+"controlsDescription": "Tap (or touch) and hold to aim. Release to shoot the bubble.",
+"matchTitle": "Matches",
+"matchDescription": "Connect 3 or more bubbles of the same color to make them pop.",
+"dropTitle": "Grid Drop",
+"dropDescription": "Every 5 shots without a pop, the grid drops. Don't let them reach the red line!",
+"panicTitle": "Panic Mode",
+"panicDescription": "Panic starts randomly! Aim disappears, and you have only 5 seconds to shoot.",
+"bonusTitle": "Bonuses",
+"bonusDescription": "Bomb: Explodes everything nearby. Clear Row: Removes the top row of bubbles.",
+"close": "Play!"
+},
+"welcome": {
+"loading": "Loading...",
+"subtitle": "Aim, shoot, blast!",
+"errorTitle": "Error",
+"connecting": "Connecting...",
+"syncButton": "Play & Save",
+"guestButton": "Play as Guest",
+"cloudTitle": "Cloud Save",
+"cloudDesc": "Progress on all devices",
+"leaderboardTitle": "Leaderboard",
+"leaderboardDesc": "Compete with players",
+"guestWarning": "Guest: local progress only"
+}
+}

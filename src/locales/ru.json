@@ -1,0 +1,148 @@
+{
+"game": {
+"paused": "ПАУЗА",
+"nextBubbleLabel": "След.",
+"combo": "COMBO!",
+"ok": "ОК"
+},
+"header": {
+"level": "Уровень",
+"score": "Счет",
+"shop": "Магазин",
+"menu": "Меню",
+"leaderboard": "Лидеры",
+"achievements": "Достижения",
+"howToPlay": "Как играть",
+"unmute": "Вкл.звук",
+"mute": "Выкл.звук",
+"lightTheme": "Светлая",
+"darkTheme": "Темная",
+"language": "Язык",
+"restartLevel": "Заново",
+"login": "Войти",
+"logout": "Выйти"
+},
+"rightPanel": {
+"bonuses": "Бонусы",
+"bomb": "Бомба",
+"clearRow": "Очистка ряда",
+"shop": "Магазин",
+"settings": "Настройки",
+"resume": "Продолжить",
+"pause": "Пауза",
+"loggedInAs": "Вошли как"
+},
+"leftPanel": {
+"level": "Уровень",
+"score": "Счет",
+"shotsUntilDrop": "Промахов",
+"next": "След."
+},
+"gameOver": {
+"title": "ИГРА ОКОНЧЕНА",
+"description": "Шарики достигли черты.",
+"score": "Счет:",
+"continueWithAd": "Продолжить",
+"restart": "Заново"
+},
+"shop": {
+"levelCompleteTitle": "УРОВЕНЬ ПРОЙДЕН!",
+"levelCompleteDescription": "Потратьте очки.",
+"title": "МАГАЗИН",
+"yourScore": "Счет",
+"bombName": "Бомба",
+"bombDescription": "Взрыв в радиусе.",
+"clearRowName": "Очистка ряда",
+"clearRowDescription": "Удаляет верхний ряд пузырей",
+"inStock": "В наличии:",
+"buy": "Купить",
+"freeBonusesTitle": "Бесплатно",
+"freeBonusesDescription": "За рекламу.",
+"nextLevel": "Далее",
+"continue": "Продолжить"
+},
+"leaderboard": {
+"title": "Лидеры",
+"error": "Ошибка",
+"noData": "Пусто",
+"close": "Закрыть",
+"yourPosition": "Ваша позиция",
+"authMessage": "Войдите для рейтинга."
+},
+"achievements": {
+"title": "Достижения",
+"close": "Закрыть",
+"reward": "Награда",
+"unlocked": "Открыто!",
+"toastTitle": "Новое достижение!",
+"level_milestone": { "name": "Первопроходец", "description": "Пройдите как можно больше уровней." },
+"score_milestone": { "name": "Магнат", "description": "Наберите внушительную сумму очков." },
+"combo_master": { "name": "Виртуоз", "description": "Соберите серию комбо." },
+"chain_reaction": { "name": "Цепная реакция", "description": "Уничтожьте много шаров за раз." },
+"pacifist": { "name": "Чистая победа", "description": "Пройдите уровень без бонусов." },
+"sniper": { "name": "Снайпер", "description": "Совершите серию точных попаданий." },
+"big_spender": { "name": "Транжира", "description": "Потратьте очки в магазине." },
+"rapid_fire": { "name": "Скорострел", "description": "Сделайте много точных выстрелов." },
+"survivor": { "name": "Выживший", "description": "Справьтесь с режимом паники." },
+"perfectionist": { "name": "Перфекционист", "description": "Пройдите уровни без промахов." },
+"tiers": {
+"bronze": "Бронза",
+"silver": "Серебро",
+"gold": "Золото",
+"diamond": "Алмаз",
+"master": "Мастер"
+}
+},
+"orientation": {
+"message": "Поверните устройство."
+},
+"loginDialog": {
+"title": "Синхронизация",
+"description": "Войдите для облака.",
+"benefitCloud": "Облачные сохранения.",
+"benefitLeaderboard": "Рейтинг.",
+"guestInfo": "Гость — локально.",
+"loginButton": "Войти",
+"cancelButton": "Гость",
+"processing": "Загрузка..."
+},
+"levelComplete": {
+"title": "Уровень пройден!",
+"description": "Статистика.",
+"time": "Время",
+"shots": "Выстрелов",
+"accuracy": "Точность",
+"bestCombo": "Комбо",
+"bubblesPopped": "Лопнуто",
+"continue": "В магазин"
+},
+"howToPlay": {
+"title": "Инструкция",
+"goalTitle": "Ваша цель",
+"goalDescription": "Очистите всё игровое поле от цветных шариков, лопая их группами.",
+"controlsTitle": "Управление",
+"controlsDescription": "Нажмите (или коснитесь) и удерживайте для прицеливания. Отпустите, чтобы выстрелить шариком.",
+"matchTitle": "Комбинации",
+"matchDescription": "Соберите 3 или более шарика одного цвета вместе, чтобы они лопнули.",
+"dropTitle": "Опускание поля",
+"dropDescription": "Каждые 5 выстрелов без лопания пузырьков ряд опускается ниже. Не дайте им достичь красной черты!",
+"panicTitle": "Режим Паники",
+"panicDescription": "В случайный момент включается Паника! Прицел исчезает, и у вас есть всего 5 секунд на выстрел.",
+"bonusTitle": "Бонусы",
+"bonusDescription": "Бомба взрывает всё вокруг. Очистка ряда удаляет самый верхний ряд пузырей.",
+"close": "Вперед!"
+},
+"welcome": {
+"loading": "Загрузка...",
+"subtitle": "Прицелься, выстрели, лопни!",
+"errorTitle": "Ошибка",
+"connecting": "Вход...",
+"syncButton": "Играть и сохранять",
+"guestButton": "Просто играть",
+"cloudTitle": "Облако",
+"cloudDesc": "Прогресс на всех устройствах",
+"leaderboardTitle": "Рейтинг",
+"leaderboardDesc": "Соревнуйтесь с лучшими",
+"guestWarning": "Гость — прогресс только в этом браузере"
+}
+}
