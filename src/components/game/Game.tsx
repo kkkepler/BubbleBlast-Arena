@@ -569,10 +569,10 @@ const Game = () => {
       wallBounce.volume.value = -14;
       
       const victory = new tone.PolySynth(tone.Synth, { 
-        oscillator: { type: 'fatsine', count: 3, spread: 25 }, 
-        envelope: { attack: 0.15, decay: 0.3, sustain: 0.5, release: 1.5 } 
+        oscillator: { type: 'fmsine', modulationType: 'sine', modulationIndex: 3 }, 
+        envelope: { attack: 0.05, decay: 0.4, sustain: 0.6, release: 2.0 } 
       }).connect(largeReverb);
-      victory.volume.value = -6;
+      victory.volume.value = -4;
       
       const lose = new tone.PolySynth(tone.Synth, { 
         oscillator: { type: 'sawtooth' },
@@ -735,7 +735,7 @@ const Game = () => {
     if (state.status === 'lost') {
       safePlay('lose', "C3,D#3,G3,C4", "1n");
     } else if (state.status === 'level_complete') {
-      safePlay('victory', "C4,E4,G4,C5", "1n");
+      safePlay('victory', "C5,E5,G5,C6,E6,G6", "2n");
     }
   }, [state.status]);
 

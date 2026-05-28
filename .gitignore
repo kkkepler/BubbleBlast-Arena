@@ -12,25 +12,27 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.py.class
 .Python
 env/
 venv/
 .venv/
-.ENV
 .env
 .env.local
 .env.*
-.python-version
-.pytest_cache/
-.mypy_cache/
+.venv/
+.ENV
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
 .coverage
-coverage/
-htmlcov/
-
-# Logs
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
 *.log
-
-# OS generated files
+.git/modules/
 .DS_Store
 .DS_Store?
 ._*
@@ -38,12 +40,23 @@ htmlcov/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Editor files
+.recommenders
 .vscode/
 .idea/
-*.swp
-*.swo
+
+# Compiled and binary files
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.obj
+*.a
+*.lib
+*.out
+
+# Logs
+*.log
 *.tmp
 
 # Compressed files
@@ -69,4 +82,26 @@ Thumbs.db
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Gradle
+.gradle/
+build/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# PyTest
+.pytest_cache/
+
+# Temporary files
+*.swp
+*.swo
+*~
 ```
