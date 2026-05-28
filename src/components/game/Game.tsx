@@ -36,6 +36,9 @@ function gameReducer(state: GameState, action: Action): GameState {
       const base = {
         score: isNew ? 0 : (action.savedState?.score ?? 0),
         bombBonusCount: isNew ? 0 : (action.savedState?.bombBonusCount ?? 0),
+        colorBurstBonusCount: isNew ? 0 : (action.savedState?.colorBurstBonusCount ?? 0),
+        laserBonusCount: isNew ? 0 : (action.savedState?.laserBonusCount ?? 0),
+        rowClearBonusCount: isNew ? 0 : (action.savedState?.rowClearBonusCount ?? 0),
         bonusesUsed: isNew ? 0 : (action.savedState?.bonusesUsed ?? 0),
         totalScoreSpent: isNew ? 0 : (action.savedState?.totalScoreSpent ?? 0),
         pacifistLevelsWon: isNew ? 0 : (action.savedState?.pacifistLevelsWon ?? 0),
@@ -65,13 +68,24 @@ function gameReducer(state: GameState, action: Action): GameState {
       if (state.status !== 'playing' || state.flyingBubble) return state;
       
       let fc = state.currentBubble;
+      let cbc = state.colorBurstBonusCount;
+      let lc = state.laserBonusCount;
       let bc = state.bombBonusCount;
+      let rc = state.rowClearBonusCount;
       
       if (state.activeBonus === 'bomb' && bc > 0) { 
         fc = 'bomb'; 
         bc--; 
+      } else if (state.activeBonus === 'colorBurst' && cbc > 0) {
+        fc = 'colorBurst';
+        cbc--;
+      } else if (state.activeBonus === 'laser' && lc > 0) {
+        fc = 'laser';
+        lc--;
+      } else if (state.activeBonus === 'rowClear' && rc > 0) {
+        fc = 'rowClear';
+        rc--;
       }
-      
       const newShotsUntilPanic = state.panicModeActive ? Math.floor(Math.random() * 11) + 15 : state.shotsUntilPanic - 1;
       const isActivatingPanic = !state.panicModeActive && newShotsUntilPanic <= 0;
       
@@ -89,6 +103,9 @@ function gameReducer(state: GameState, action: Action): GameState {
         shotsTaken: state.shotsTaken + 1,
         activeBonus: null,
         bombBonusCount: Math.max(0, bc),
+        colorBurstBonusCount: Math.max(0, cbc),
+        laserBonusCount: Math.max(0, lc),
+        rowClearBonusCount: Math.max(0, rc),
         poppingBubbles: [], 
         bombExploded: false, 
         bombExplosionPosition: null,
@@ -131,6 +148,44 @@ function gameReducer(state: GameState, action: Action): GameState {
                   ng[r][c] = null; ascore += 10;
                 }
               }
+            }
+          }
+          hasMatch = true;
+        } else if (fc === 'laser') {
+          // Лазер находит ближайший пузырек и уничтожает его
+          let minDist = Infinity;
+          let targetR = -1, targetC = -1;
+          const startX = state.flyingBubble.x;
+          const startY = state.flyingBubble.y;
+          for (let r = 0; r < GRID_ROWS; r++) {
+            const cols = r % 2 === 1 ? GRID_COLS - 1 : GRID_COLS;
+            for (let c = 0; c < cols; c++) {
+              if (ng[r] && ng[r][c] && ng[r][c] !== STONE_BUBBLE) {
+                const p = getBubbleCenterPosition(r, c);
+                const dist = Math.hypot(p.x - startX, p.y - startY);
+                if (dist < minDist) {
+                  minDist = dist;
+                  targetR = r;
+                  targetC = c;
+                }
+              }
+            }
+          }
+          if (targetR !== -1 && targetC !== -1) {
+            const p = getBubbleCenterPosition(targetR, targetC);
+            popped.push({ key: `l-${targetR}-${targetC}-${Date.now()}-${Math.random()}`, x: p.x - BUBBLE_RADIUS, y: p.y - BUBBLE_RADIUS, color: ng[targetR][targetC], type: 'pop' });
+            ng[targetR][targetC] = null;
+            ascore += 10;
+            hasMatch = true;
+          }
+        } else if (fc === 'rowClear') {
+          // Удаляет верхний ряд пузырьков
+          for (let c = 0; c < ng[0].length; c++) {
+            if (ng[0] && ng[0][c] && ng[0][c] !== STONE_BUBBLE) {
+              const p = getBubbleCenterPosition(0, c);
+              popped.push({ key: `rc-0-${c}-${Date.now()}-${Math.random()}`, x: p.x - BUBBLE_RADIUS, y: p.y - BUBBLE_RADIUS, color: ng[0][c], type: 'pop' });
+              ng[0][c] = null;
+              ascore += 10;
             }
           }
           hasMatch = true;
@@ -279,12 +334,56 @@ function gameReducer(state: GameState, action: Action): GameState {
       if (state.activeBonus === action.bonus) {
         return { ...state, activeBonus: null };
       }
-      const hasBonus = state.bombBonusCount > 0;
+      const bonusCounts = {
+        bomb: state.bombBonusCount,
+        colorBurst: state.colorBurstBonusCount,
+        laser: state.laserBonusCount,
+        rowClear: state.rowClearBonusCount,
+      };
+      const hasBonus = bonusCounts[action.bonus as keyof typeof bonusCounts] > 0;
       if (!hasBonus) return state;
       return { ...state, activeBonus: action.bonus };
     }
-    case 'BUY_BONUS': return { ...state, score: state.score - action.cost, bombBonusCount: state.bombBonusCount + 1, totalScoreSpent: state.totalScoreSpent + action.cost };
-    case 'ADD_BONUS': return { ...state, bombBonusCount: state.bombBonusCount + 1 };
+    case 'BUY_BONUS': {
+      let newBombCount = state.bombBonusCount;
+      let newColorBurstCount = state.colorBurstBonusCount;
+      let newLaserCount = state.laserBonusCount;
+      let newRowClearCount = state.rowClearBonusCount;
+      
+      if (action.bonus === 'bomb') newBombCount++;
+      else if (action.bonus === 'colorBurst') newColorBurstCount++;
+      else if (action.bonus === 'laser') newLaserCount++;
+      else if (action.bonus === 'rowClear') newRowClearCount++;
+      
+      return { 
+        ...state, 
+        score: state.score - action.cost, 
+        bombBonusCount: newBombCount,
+        colorBurstBonusCount: newColorBurstCount,
+        laserBonusCount: newLaserCount,
+        rowClearBonusCount: newRowClearCount,
+        totalScoreSpent: state.totalScoreSpent + action.cost 
+      };
+    }
+    case 'ADD_BONUS': {
+      let newBombCount = state.bombBonusCount;
+      let newColorBurstCount = state.colorBurstBonusCount;
+      let newLaserCount = state.laserBonusCount;
+      let newRowClearCount = state.rowClearBonusCount;
+      
+      if (action.bonus === 'bomb') newBombCount++;
+      else if (action.bonus === 'colorBurst') newColorBurstCount++;
+      else if (action.bonus === 'laser') newLaserCount++;
+      else if (action.bonus === 'rowClear') newRowClearCount++;
+      
+      return { 
+        ...state, 
+        bombBonusCount: newBombCount,
+        colorBurstBonusCount: newColorBurstCount,
+        laserBonusCount: newLaserCount,
+        rowClearBonusCount: newRowClearCount,
+      };
+    }
     case 'ADD_SCORE': return { ...state, score: state.score + action.amount };
     default: return state;
   }

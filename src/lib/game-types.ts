@@ -4,7 +4,7 @@ export type BubbleColor = string | null;
 export type Grid = BubbleColor[][];
 export type FlyingBubble = { x: number; y: number; color: BubbleColor; angle: number; diameter: number };
 export type GameStatus = 'ready' | 'playing' | 'won' | 'lost' | 'paused' | 'shop' | 'level_complete';
-export type BonusType = 'bomb';
+export type BonusType = 'bomb' | 'colorBurst' | 'laser' | 'rowClear';
 export type PoppedBubble = { key: string; x: number; y: number; color: BubbleColor; type: 'pop' | 'fall' | 'dissolve' };
 export type Trajectory = { points: {x: number, y: number}[]; color: BubbleColor; endBubble: { x: number; y: number; color: BubbleColor } | null };
 export type Particle = { key: string; x: number; y: number; vx: number; vy: number; lifespan: number; size: number; color: string; type: 'spark' | 'burst' | 'glitter' | 'smoke' | 'glow' | 'bubble' };
@@ -13,7 +13,7 @@ export type GameState = {
 level: number; grid: Grid; availableColors: string[]; shotsTaken: number;
 shotsSinceDrop: number; shotsBeforeDrop: number; score: number; status: GameStatus;
 currentBubble: BubbleColor; nextBubble: BubbleColor; flyingBubble: FlyingBubble | null;
-activeBonus: BonusType | null; bombBonusCount: number;
+activeBonus: BonusType | null; bombBonusCount: number; colorBurstBonusCount: number; laserBonusCount: number; rowClearBonusCount: number;
 bonusesUsed: number; comboCounter: number; poppingBubbles: PoppedBubble[];
 bombExploded: boolean; bombExplosionPosition: { x: number, y: number } | null;
 comboDisplay: { count: number; x: number; y: number; key: string } | null;
